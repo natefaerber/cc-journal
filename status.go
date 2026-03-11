@@ -299,14 +299,24 @@ func decisionItems(entries []Entry) []string {
 	return items
 }
 
-func formatDaily() string {
-	now := time.Now()
-	today := now.Format("2006-01-02")
+// weekRange returns the Monday and Sunday of the week containing the given date.
+func weekRange(t time.Time) (start, end time.Time) {
+	weekday := int(t.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	monday := t.AddDate(0, 0, -(weekday - 1))
+	sunday := monday.AddDate(0, 0, 6)
+	return monday, sunday
+}
+
+func formatDaily(target time.Time) string {
+	today := target.Format("2006-01-02")
 
 	// Yesterday (skip weekends)
-	yesterday := now.AddDate(0, 0, -1)
-	if now.Weekday() == time.Monday {
-		yesterday = now.AddDate(0, 0, -3) // Friday
+	yesterday := target.AddDate(0, 0, -1)
+	if target.Weekday() == time.Monday {
+		yesterday = target.AddDate(0, 0, -3) // Friday
 	}
 	yesterdayStr := yesterday.Format("2006-01-02")
 
@@ -323,7 +333,7 @@ func formatDaily() string {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "*Daily Standup — %s*\n\n", now.Format("Monday, Jan 02"))
+	fmt.Fprintf(&b, "*Daily Standup — %s*\n\n", target.Format("Monday, Jan 02"))
 
 	b.WriteString("*Yesterday:*\n")
 	if len(yesterdayEntries) > 0 {
@@ -401,27 +411,21 @@ func formatDaily() string {
 	return b.String()
 }
 
-func formatWeekly() string {
-	now := time.Now()
-	today := now.Format("2006-01-02")
-
-	weekday := int(now.Weekday())
-	if weekday == 0 {
-		weekday = 7
-	}
-	monday := now.AddDate(0, 0, -(weekday - 1))
+func formatWeekly(start, end time.Time) string {
+	startStr := start.Format("2006-01-02")
+	endStr := end.Format("2006-01-02")
 
 	data := parseJournalFiles()
 
 	var weekEntries []Entry
 	for _, e := range data.Entries {
-		if e.Date >= monday.Format("2006-01-02") && e.Date <= today {
+		if e.Date >= startStr && e.Date <= endStr {
 			weekEntries = append(weekEntries, e)
 		}
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "*Weekly Status — Week of %s*\n\n", monday.Format("Jan 02, 2006"))
+	fmt.Fprintf(&b, "*Weekly Status — Week of %s*\n\n", start.Format("Jan 02, 2006"))
 
 	if len(weekEntries) == 0 {
 		b.WriteString("No sessions recorded this week.\n")

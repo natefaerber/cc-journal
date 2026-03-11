@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -79,12 +80,39 @@ func main() {
 		build(outDir, templatesDir)
 
 	case "standup":
-		output := formatDaily()
+		target := time.Now()
+		if dateArg := positionalOrFlag(args, "--date"); dateArg != "" {
+			if t, err := time.Parse("2006-01-02", dateArg); err == nil {
+				target = t
+			} else {
+				fmt.Fprintf(os.Stderr, "Invalid date: %s (use YYYY-MM-DD)\n", dateArg)
+				os.Exit(1)
+			}
+		}
+		output := formatDaily(target)
 		fmt.Print(output)
 		handleOutputActions(args, output)
 
 	case "weekly":
-		output := formatWeekly()
+		now := time.Now()
+		start, end := weekRange(now)
+		if startArg := positionalOrFlag(args, "--start"); startArg != "" {
+			if t, err := time.Parse("2006-01-02", startArg); err == nil {
+				start = t
+			} else {
+				fmt.Fprintf(os.Stderr, "Invalid start date: %s (use YYYY-MM-DD)\n", startArg)
+				os.Exit(1)
+			}
+		}
+		if endArg := flagValue(args, "--end"); endArg != "" {
+			if t, err := time.Parse("2006-01-02", endArg); err == nil {
+				end = t
+			} else {
+				fmt.Fprintf(os.Stderr, "Invalid end date: %s (use YYYY-MM-DD)\n", endArg)
+				os.Exit(1)
+			}
+		}
+		output := formatWeekly(start, end)
 		fmt.Print(output)
 		handleOutputActions(args, output)
 
@@ -190,8 +218,8 @@ Browse Commands:
   rollup [DATE]                 Generate AI-powered weekly rollup
 
 Report Commands:
-  standup   [--copy] [--slack [CHANNEL]]  Print daily standup update
-  weekly    [--copy] [--slack [CHANNEL]]  Print weekly status by project
+  standup   [DATE] [--copy] [--slack [CHANNEL]]  Print daily standup (default: today)
+  weekly    [START] [--end END] [--copy] [--slack [CHANNEL]]  Print weekly status (default: this week)
 
 Setup:
   init      [--templates] [--prompts] [--force] [--stdout]  Export defaults for customization
@@ -205,6 +233,19 @@ func flagValue(args []string, flag string) string {
 	for i, a := range args {
 		if a == flag && i+1 < len(args) {
 			return args[i+1]
+		}
+	}
+	return ""
+}
+
+// positionalOrFlag returns the first positional arg (non-flag) or the value of the named flag.
+func positionalOrFlag(args []string, flag string) string {
+	if v := flagValue(args, flag); v != "" {
+		return v
+	}
+	for _, a := range args {
+		if !strings.HasPrefix(a, "--") {
+			return a
 		}
 	}
 	return ""

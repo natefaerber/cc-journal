@@ -362,17 +362,39 @@ func buildDashboard(data JournalData) DashboardData {
 }
 
 // SummaryPreview returns a truncated, cleaned summary for table display.
+// Extracts the first Done bullet from structured summaries, falling back to first content line.
 func (e Entry) SummaryPreview() string {
 	s := e.Summary
 	if len(s) == 0 {
 		return ""
 	}
-	// Strip markdown bold
-	boldRe := regexp.MustCompile(`\*\*(.+?)\*\*`)
-	s = boldRe.ReplaceAllString(s, "$1")
-	s = strings.ReplaceAll(s, "\n", " ")
-	if len(s) > 120 {
-		s = s[:117] + "..."
+
+	// Try to extract first Done bullet from structured summary
+	sections := parseSummarySections(s)
+	if len(sections.Done) > 0 {
+		preview := sections.Done[0]
+		// Strip markdown bold
+		boldRe := regexp.MustCompile(`\*\*(.+?)\*\*`)
+		preview = boldRe.ReplaceAllString(preview, "$1")
+		if len(preview) > 120 {
+			preview = preview[:117] + "..."
+		}
+		return preview
 	}
-	return s
+
+	// Fallback: first non-heading, non-empty line
+	boldRe := regexp.MustCompile(`\*\*(.+?)\*\*`)
+	for _, line := range strings.Split(s, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "###") || strings.HasPrefix(line, "**Prompts:**") {
+			continue
+		}
+		line = strings.TrimPrefix(line, "- ")
+		line = boldRe.ReplaceAllString(line, "$1")
+		if len(line) > 120 {
+			line = line[:117] + "..."
+		}
+		return line
+	}
+	return ""
 }

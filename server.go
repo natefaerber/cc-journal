@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
@@ -137,6 +138,13 @@ type PageData struct {
 	Entries     []Entry
 	PrevDate    string
 	NextDate    string
+	PrevURL        string // previous report URL for nav
+	NextURL        string // next report URL for nav
+	ReportType     string // "standup" or "weekly"
+	ReportSubtitle string // date display for report header
+	ReportDateVal  string // YYYY-MM-DD for date picker (standup)
+	ReportStartVal string // YYYY-MM-DD for date picker (weekly start)
+	ReportEndVal   string // YYYY-MM-DD for date picker (weekly end)
 }
 
 func renderPage(name string, overrideDir string, data PageData) ([]byte, error) {
@@ -391,12 +399,35 @@ func serve(port int, templatesDir string) {
 			w.Write(out)
 
 		case path == "standup" || path == "standup/":
-			raw := formatDaily()
+			targetDate := time.Now()
+			if dateStr := r.URL.Query().Get("date"); dateStr != "" {
+				if t, err := time.Parse("2006-01-02", dateStr); err == nil {
+					targetDate = t
+				}
+			}
+			raw := formatDaily(targetDate)
+			prevDate := targetDate.AddDate(0, 0, -1)
+			if targetDate.Weekday() == time.Monday {
+				prevDate = targetDate.AddDate(0, 0, -3)
+			}
+			nextDate := targetDate.AddDate(0, 0, 1)
+			if targetDate.Weekday() == time.Friday {
+				nextDate = targetDate.AddDate(0, 0, 3)
+			}
+			nextURL := ""
+			if !nextDate.After(time.Now()) {
+				nextURL = "/standup?date=" + nextDate.Format("2006-01-02")
+			}
 			page := PageData{
-				Title:      "Standup",
-				ReportText: raw,
-				ReportHTML: renderReportMarkdown(raw),
-				Dates:      getDates(data),
+				Title:          "Standup",
+				ReportText:     raw,
+				ReportHTML:     renderReportMarkdown(raw),
+				Dates:          getDates(data),
+				PrevURL:        "/standup?date=" + prevDate.Format("2006-01-02"),
+				NextURL:        nextURL,
+				ReportType:     "standup",
+				ReportSubtitle: targetDate.Format("Monday, Jan 02, 2006"),
+				ReportDateVal:  targetDate.Format("2006-01-02"),
 			}
 			out, err := renderPage("report.html", templatesDir, page)
 			if err != nil {
@@ -407,12 +438,41 @@ func serve(port int, templatesDir string) {
 			w.Write(out)
 
 		case path == "weekly" || path == "weekly/":
-			raw := formatWeekly()
+			now := time.Now()
+			startDate, endDate := weekRange(now)
+			if s := r.URL.Query().Get("start"); s != "" {
+				if t, err := time.Parse("2006-01-02", s); err == nil {
+					startDate = t
+					if r.URL.Query().Get("end") == "" {
+						endDate = startDate.AddDate(0, 0, 6)
+					}
+				}
+			}
+			if e := r.URL.Query().Get("end"); e != "" {
+				if t, err := time.Parse("2006-01-02", e); err == nil {
+					endDate = t
+				}
+			}
+			raw := formatWeekly(startDate, endDate)
+			prevStart := startDate.AddDate(0, 0, -7)
+			prevEnd := endDate.AddDate(0, 0, -7)
+			nextStart := startDate.AddDate(0, 0, 7)
+			nextEnd := endDate.AddDate(0, 0, 7)
+			nextURL := ""
+			if !nextStart.After(now) {
+				nextURL = fmt.Sprintf("/weekly?start=%s&end=%s", nextStart.Format("2006-01-02"), nextEnd.Format("2006-01-02"))
+			}
 			page := PageData{
-				Title:      "Weekly",
-				ReportText: raw,
-				ReportHTML: renderReportMarkdown(raw),
-				Dates:      getDates(data),
+				Title:          "Weekly",
+				ReportText:     raw,
+				ReportHTML:     renderReportMarkdown(raw),
+				Dates:          getDates(data),
+				PrevURL:        fmt.Sprintf("/weekly?start=%s&end=%s", prevStart.Format("2006-01-02"), prevEnd.Format("2006-01-02")),
+				NextURL:        nextURL,
+				ReportType:     "weekly",
+				ReportSubtitle: startDate.Format("Jan 02") + " – " + endDate.Format("Jan 02, 2006"),
+				ReportStartVal: startDate.Format("2006-01-02"),
+				ReportEndVal:   endDate.Format("2006-01-02"),
 			}
 			out, err := renderPage("report.html", templatesDir, page)
 			if err != nil {
