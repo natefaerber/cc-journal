@@ -136,22 +136,10 @@ func generateRollup(targetDate string) {
 		allContent = allContent[:maxTranscriptChars]
 	}
 
-	prompt := fmt.Sprintf(`You are creating a weekly development summary from a developer's daily Claude Code journal entries.
-
-Week of: %s
-
-Below are the daily entries. Produce a weekly rollup in markdown with:
-
-1. **Highlights** — the 3-5 most significant things accomplished this week
-2. **Projects touched** — group work by project/repo
-3. **Patterns** — any recurring themes
-4. **Carry-forward** — open threads or items to pick up next week
-
-Keep it concise and actionable.
-
-<daily_entries>
-%s
-</daily_entries>`, monday.Format("2006-01-02"), allContent)
+	prompt := strings.NewReplacer(
+		"{{.Week}}", monday.Format("2006-01-02"),
+		"{{.Content}}", allContent,
+	).Replace(loadPrompt("rollup"))
 
 	fmt.Println("Generating weekly rollup...")
 

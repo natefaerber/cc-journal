@@ -352,6 +352,23 @@ If the session was very short or trivial (e.g. just a question or a single small
 {{.Transcript}}
 </transcript>`
 
+const defaultRollupTemplate = `You are creating a weekly development summary from a developer's daily Claude Code journal entries.
+
+Week of: {{.Week}}
+
+Below are the daily entries. Produce a weekly rollup in markdown with:
+
+1. **Highlights** — the 3-5 most significant things accomplished this week
+2. **Projects touched** — group work by project/repo
+3. **Patterns** — any recurring themes
+4. **Carry-forward** — open threads or items to pick up next week
+
+Keep it concise and actionable.
+
+<daily_entries>
+{{.Content}}
+</daily_entries>`
+
 // loadPrompt loads a named prompt from the prompt directory.
 // Falls back to the embedded default for "summary". Other names return empty on miss.
 func loadPrompt(name string) string {
@@ -364,6 +381,8 @@ func loadPrompt(name string) string {
 	switch name {
 	case "summary":
 		return defaultPromptTemplate
+	case "rollup":
+		return defaultRollupTemplate
 	}
 	return ""
 }

@@ -10,6 +10,7 @@ import (
 // builtinPrompts maps prompt names to their default content.
 var builtinPrompts = map[string]string{
 	"summary": defaultPromptTemplate,
+	"rollup":  defaultRollupTemplate,
 }
 
 func runInit(args []string) {
