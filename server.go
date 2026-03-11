@@ -90,9 +90,25 @@ func loadTemplate(name string, overrideDir string) (*template.Template, error) {
 	return tmpl, nil
 }
 
+// renderReportMarkdown converts Slack-flavored report text to rendered HTML.
+// Slack uses *bold* and _italic_; standard markdown uses **bold** and *italic*.
+func renderReportMarkdown(src string) template.HTML {
+	// Convert Slack *bold* to markdown **bold** (but not inside backticks)
+	// Match *text* that isn't inside backticks and isn't **already doubled**
+	slackBold := regexp.MustCompile(`(?m)(^|[^*\x60])\*([^*\n]+)\*([^*]|$)`)
+	converted := slackBold.ReplaceAllString(src, "${1}**${2}**${3}")
+	// Convert Slack _italic_ to markdown *italic*
+	slackItalic := regexp.MustCompile(`(?m)(^|[\s(])_([^_\n]+)_([^_]|$)`)
+	converted = slackItalic.ReplaceAllString(converted, "${1}*${2}*${3}")
+	// Convert bullet lines with • to markdown - bullets
+	converted = strings.ReplaceAll(converted, "    • ", "  - ")
+	converted = strings.ReplaceAll(converted, "  • ", "- ")
+	return renderMarkdown(converted)
+}
+
 func renderMarkdown(src string) template.HTML {
 	md := goldmark.New(
-		goldmark.WithExtensions(extension.Table),
+		goldmark.WithExtensions(extension.Table, extension.Linkify),
 		goldmark.WithRendererOptions(html.WithUnsafe()),
 	)
 	var buf bytes.Buffer
@@ -116,6 +132,7 @@ type PageData struct {
 	Dates       []string
 	Days        []DailyInfo
 	ReportText  string
+	ReportHTML  template.HTML
 	ProjectName string
 	Entries     []Entry
 	PrevDate    string
@@ -374,9 +391,11 @@ func serve(port int, templatesDir string) {
 			w.Write(out)
 
 		case path == "standup" || path == "standup/":
+			raw := formatDaily()
 			page := PageData{
 				Title:      "Standup",
-				ReportText: formatDaily(),
+				ReportText: raw,
+				ReportHTML: renderReportMarkdown(raw),
 				Dates:      getDates(data),
 			}
 			out, err := renderPage("report.html", templatesDir, page)
@@ -388,9 +407,11 @@ func serve(port int, templatesDir string) {
 			w.Write(out)
 
 		case path == "weekly" || path == "weekly/":
+			raw := formatWeekly()
 			page := PageData{
 				Title:      "Weekly",
-				ReportText: formatWeekly(),
+				ReportText: raw,
+				ReportHTML: renderReportMarkdown(raw),
 				Dates:      getDates(data),
 			}
 			out, err := renderPage("report.html", templatesDir, page)

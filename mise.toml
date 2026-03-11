@@ -30,6 +30,17 @@ rm -f mise.local.toml
 echo "Reverted to global mise config."
 """
 
+[tasks.serve]
+description = "Build and start the dev server"
+depends = ["serve:stop"]
+run = "go run . serve"
+
+[tasks."serve:stop"]
+description = "Kill any running cc-journal server"
+run = """
+pkill -f 'cc-journal.*serve' 2>/dev/null && echo "Stopped cc-journal server." || echo "No cc-journal server running."
+"""
+
 [tasks.clean]
 description = "Remove build artifacts"
 run = "rm -f cc-journal"
