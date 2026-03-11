@@ -1,0 +1,35 @@
+[tools]
+go = "1.25"
+
+[tasks.build]
+description = "Build cc-journal binary"
+run = "go build -o cc-journal ."
+
+[tasks.vet]
+description = "Run go vet"
+run = "go vet ./..."
+
+[tasks.check]
+description = "Build and vet"
+depends = ["build", "vet"]
+
+[tasks.dev]
+description = "Build and install dev version locally via mise"
+run = """
+mkdir -p ~/.local/share/mise/installs/github-natefaerber-cc-journal/dev
+go build -o ~/.local/share/mise/installs/github-natefaerber-cc-journal/dev/cc-journal .
+mise use --path mise.local.toml "github:natefaerber/cc-journal@dev"
+echo "Dev build installed. Run 'mise x -- cc-journal <cmd>' or open a new shell."
+echo "Run 'mise run dev:revert' to revert."
+"""
+
+[tasks."dev:revert"]
+description = "Revert to the released version of cc-journal"
+run = """
+rm -f mise.local.toml
+echo "Reverted to global mise config."
+"""
+
+[tasks.clean]
+description = "Remove build artifacts"
+run = "rm -f cc-journal"

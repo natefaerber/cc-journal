@@ -29,16 +29,45 @@ type transcriptMessage struct {
 	Time string
 }
 
+// BranchInfo represents a unique cwd+branch pair seen during a session.
+type BranchInfo struct {
+	CWD    string
+	Branch string
+}
+
 // sessionMeta holds metadata extracted from a session transcript.
 type sessionMeta struct {
 	SessionID string
 	CWD       string
 	GitBranch string
 	Project   string
+	Branches  []BranchInfo
 	Messages  []transcriptMessage
 	FirstTime string
 	LastTime  string
 	Links     []ExternalLink
+}
+
+// BranchDisplay returns a comma-separated list of unique branch names, or "n/a" if empty.
+func (m *sessionMeta) BranchDisplay() string {
+	if len(m.Branches) == 0 {
+		if m.GitBranch != "" {
+			return m.GitBranch
+		}
+		return "n/a"
+	}
+	seen := make(map[string]bool)
+	var names []string
+	for _, b := range m.Branches {
+		if b.Branch != "" && !seen[b.Branch] {
+			seen[b.Branch] = true
+			names = append(names, b.Branch)
+		}
+	}
+	if len(names) == 0 {
+		return "n/a"
+	}
+	return strings.Join(names, ", ")
 }
 
 // getAPIKey retrieves the Anthropic API key.
@@ -159,6 +188,8 @@ func parseTranscript(path string) (*sessionMeta, error) {
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 
+	seenBranches := make(map[string]bool)
+
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if len(line) == 0 {
@@ -169,15 +200,23 @@ func parseTranscript(path string) (*sessionMeta, error) {
 			continue
 		}
 
-		if meta.GitBranch == "" {
-			if branch, ok := entry["gitBranch"].(string); ok && branch != "" {
-				meta.GitBranch = branch
+		// Track all unique cwd+branch pairs
+		entryCwd, _ := entry["cwd"].(string)
+		entryBranch, _ := entry["gitBranch"].(string)
+		if entryBranch != "" {
+			key := entryCwd + "|" + entryBranch
+			if !seenBranches[key] {
+				seenBranches[key] = true
+				meta.Branches = append(meta.Branches, BranchInfo{CWD: entryCwd, Branch: entryBranch})
 			}
 		}
-		if meta.CWD == "" {
-			if cwd, ok := entry["cwd"].(string); ok && cwd != "" {
-				meta.CWD = cwd
-			}
+
+		// Still set first-seen CWD and GitBranch for backward compat
+		if meta.GitBranch == "" && entryBranch != "" {
+			meta.GitBranch = entryBranch
+		}
+		if meta.CWD == "" && entryCwd != "" {
+			meta.CWD = entryCwd
 		}
 		if ts, ok := entry["timestamp"].(string); ok && ts != "" {
 			if meta.FirstTime == "" {
@@ -439,10 +478,7 @@ func appendToJournal(meta *sessionMeta, summary string) error {
 		os.WriteFile(journalFile, []byte(fmt.Sprintf("# Claude Code Journal — %s\n\n", today)), 0o644)
 	}
 
-	branch := meta.GitBranch
-	if branch == "" {
-		branch = "n/a"
-	}
+	branch := meta.BranchDisplay()
 
 	cwdLine := ""
 	if meta.CWD != "" {
@@ -528,7 +564,7 @@ func summarizeSession(sessionID string, force bool) {
 		fmt.Println("No messages found in transcript.")
 		return
 	}
-	fmt.Printf("Project: %s (%s), %d messages\n", meta.Project, meta.GitBranch, len(meta.Messages))
+	fmt.Printf("Project: %s (%s), %d messages\n", meta.Project, meta.BranchDisplay(), len(meta.Messages))
 
 	fmt.Println("Getting API key...")
 	apiKey, err := getAPIKey()
@@ -550,7 +586,7 @@ func summarizeSession(sessionID string, force bool) {
 
 	fmt.Println("Generating summary...")
 	transcript := buildTranscriptText(meta.Messages)
-	summary, err := callAnthropicAPI(apiKey, transcript, meta.Project, meta.GitBranch)
+	summary, err := callAnthropicAPI(apiKey, transcript, meta.Project, meta.BranchDisplay())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

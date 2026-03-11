@@ -104,7 +104,7 @@ func runBackfill(days int, dryRun bool) {
 			}
 		}
 
-		fmt.Printf("  %s  %s (%s)  %s...\n", sessionID[:8], meta.Project, meta.GitBranch, firstUserMsg)
+		fmt.Printf("  %s  %s (%s)  %s...\n", sessionID[:8], meta.Project, meta.BranchDisplay(), firstUserMsg)
 
 		if dryRun {
 			continue
@@ -119,7 +119,7 @@ func runBackfill(days int, dryRun bool) {
 		}
 
 		transcript := buildTranscriptText(meta.Messages)
-		summary, err := callAnthropicAPI(apiKey, transcript, meta.Project, meta.GitBranch)
+		summary, err := callAnthropicAPI(apiKey, transcript, meta.Project, meta.BranchDisplay())
 		if err != nil {
 			fmt.Printf("    Failed: %v\n", err)
 			continue
@@ -142,10 +142,7 @@ func runBackfill(days int, dryRun bool) {
 			os.WriteFile(journalFile, []byte(fmt.Sprintf("# Claude Code Journal — %s\n\n", journalDate)), 0o644)
 		}
 
-		branch := meta.GitBranch
-		if branch == "" {
-			branch = "n/a"
-		}
+		branch := meta.BranchDisplay()
 		cwdLine := ""
 		if meta.CWD != "" {
 			cwdLine = fmt.Sprintf("\n<code>%s</code>", meta.CWD)

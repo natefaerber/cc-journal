@@ -67,7 +67,7 @@ func runHook() {
 	}
 
 	transcript := buildTranscriptText(meta.Messages)
-	summary, err := callAnthropicAPI(apiKey, transcript, meta.Project, meta.GitBranch)
+	summary, err := callAnthropicAPI(apiKey, transcript, meta.Project, meta.BranchDisplay())
 	if err != nil {
 		// Fallback: list user prompts
 		var prompts []string
