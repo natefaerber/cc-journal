@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -310,6 +312,152 @@ func weekRange(t time.Time) (start, end time.Time) {
 	return monday, sunday
 }
 
+// ReportGroup holds pre-computed data for a project group in report templates.
+type ReportGroup struct {
+	Project  string
+	Branches string
+	Duration string
+	Sessions int
+	Bullets  []string
+}
+
+// StandupData is the template data for daily standup reports.
+type StandupData struct {
+	DateLabel      string
+	YesterdayDate  string
+	YesterdayGroups []ReportGroup
+	TodayGroups    []ReportGroup
+	OpenItems      []string
+	Links          []ExternalLink
+}
+
+// WeeklyData is the template data for weekly status reports.
+type WeeklyData struct {
+	WeekLabel     string
+	Groups        []ReportGroup
+	Decisions     []string
+	OpenItems     []string
+	Links         []ExternalLink
+	TotalSessions int
+	TotalProjects int
+	ActiveDays    int
+}
+
+func buildReportGroups(groups []projectGroup) []ReportGroup {
+	var out []ReportGroup
+	for _, g := range groups {
+		branches := collectBranches(g.Entries)
+		branchStr := "n/a"
+		if len(branches) > 0 {
+			branchStr = strings.Join(branches, ", ")
+		}
+		dur := sumDurations(g.Entries)
+		out = append(out, ReportGroup{
+			Project:  g.Project,
+			Branches: branchStr,
+			Duration: formatDuration(dur),
+			Sessions: len(g.Entries),
+			Bullets:  doneBullets(g.Entries),
+		})
+	}
+	return out
+}
+
+const defaultStandupTemplate = `*Daily Standup — {{.DateLabel}}*
+
+*Yesterday:*
+{{- if .YesterdayGroups}}
+{{- range .YesterdayGroups}}
+  ` + "`" + `{{.Project}}` + "`" + ` ({{.Branches}}){{if .Duration}} {{.Duration}}{{end}}
+{{- range .Bullets}}
+    • {{.}}
+{{- end}}
+{{- end}}
+{{- else}}
+  No sessions recorded ({{.YesterdayDate}})
+{{- end}}
+
+*Today:*
+{{- if .TodayGroups}}
+{{- range .TodayGroups}}
+  ` + "`" + `{{.Project}}` + "`" + ` ({{.Branches}}){{if .Duration}} {{.Duration}}{{end}}
+{{- range .Bullets}}
+    • {{.}}
+{{- end}}
+{{- end}}
+{{- else}}
+  (no sessions yet)
+{{- end}}
+
+*Open Items:*
+{{- if .OpenItems}}
+{{- range .OpenItems}}
+  • {{.}}
+{{- end}}
+{{- else}}
+  None
+{{- end}}
+{{- if .Links}}
+
+*Links:*
+{{- range .Links}}
+  • {{.Label}}: {{.URL}}
+{{- end}}
+{{- end}}
+`
+
+const defaultWeeklyTemplate = `*Weekly Status — Week of {{.WeekLabel}}*
+{{- if eq .TotalSessions 0}}
+
+No sessions recorded this week.
+{{- else}}
+
+*Accomplishments:*
+{{- range .Groups}}
+  *` + "`" + `{{.Project}}` + "`" + `* — {{.Sessions}} session{{if ne .Sessions 1}}s{{end}}{{if ne .Branches "n/a"}} ({{.Branches}}){{end}}{{if .Duration}} {{.Duration}}{{end}}
+{{- range .Bullets}}
+    • {{.}}
+{{- end}}
+{{- end}}
+{{- if .Decisions}}
+
+*Key Decisions:*
+{{- range .Decisions}}
+  • {{.}}
+{{- end}}
+{{- end}}
+{{- if .OpenItems}}
+
+*Open/Carry-Forward:*
+{{- range .OpenItems}}
+  • {{.}}
+{{- end}}
+{{- end}}
+{{- if .Links}}
+
+*Links:*
+{{- range .Links}}
+  • {{.Label}}: {{.URL}}
+{{- end}}
+{{- end}}
+
+_{{.TotalSessions}} sessions across {{.TotalProjects}} project{{if ne .TotalProjects 1}}s{{end}}, {{.ActiveDays}} active day{{if ne .ActiveDays 1}}s{{end}}_
+{{- end}}
+`
+
+func executeReportTemplate(name, tmplStr string, data interface{}) string {
+	tmpl, err := template.New(name).Parse(tmplStr)
+	if err != nil {
+		// Fallback: return error message
+		return fmt.Sprintf("Template error: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return fmt.Sprintf("Template execution error: %v", err)
+	}
+	return buf.String()
+}
+
 func formatDaily(target time.Time) string {
 	today := target.Format("2006-01-02")
 
@@ -332,83 +480,22 @@ func formatDaily(target time.Time) string {
 		}
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "*Daily Standup — %s*\n\n", target.Format("Monday, Jan 02"))
-
-	b.WriteString("*Yesterday:*\n")
-	if len(yesterdayEntries) > 0 {
-		for _, g := range groupByProject(yesterdayEntries) {
-			branches := collectBranches(g.Entries)
-			branchStr := "n/a"
-			if len(branches) > 0 {
-				branchStr = strings.Join(branches, ", ")
-			}
-			dur := sumDurations(g.Entries)
-			durStr := formatDuration(dur)
-
-			header := fmt.Sprintf("  `%s` (%s)", g.Project, branchStr)
-			if durStr != "" {
-				header += " " + durStr
-			}
-			fmt.Fprintf(&b, "%s\n", header)
-
-			for _, bul := range doneBullets(g.Entries) {
-				fmt.Fprintf(&b, "    • %s\n", bul)
-			}
-		}
-	} else {
-		fmt.Fprintf(&b, "  No sessions recorded (%s)\n", yesterdayStr)
-	}
-	b.WriteString("\n")
-
-	b.WriteString("*Today:*\n")
-	if len(todayEntries) > 0 {
-		for _, g := range groupByProject(todayEntries) {
-			branches := collectBranches(g.Entries)
-			branchStr := "n/a"
-			if len(branches) > 0 {
-				branchStr = strings.Join(branches, ", ")
-			}
-			dur := sumDurations(g.Entries)
-			durStr := formatDuration(dur)
-
-			header := fmt.Sprintf("  `%s` (%s)", g.Project, branchStr)
-			if durStr != "" {
-				header += " " + durStr
-			}
-			fmt.Fprintf(&b, "%s\n", header)
-
-			for _, bul := range doneBullets(g.Entries) {
-				fmt.Fprintf(&b, "    • %s\n", bul)
-			}
-		}
-	} else {
-		b.WriteString("  (no sessions yet)\n")
-	}
-	b.WriteString("\n")
-
-	// Collect open items from both days
 	allEntries := append(yesterdayEntries, todayEntries...)
-	open := openItems(allEntries, true)
-	b.WriteString("*Open Items:*\n")
-	if len(open) > 0 {
-		for _, item := range open {
-			fmt.Fprintf(&b, "  • %s\n", item)
-		}
-	} else {
-		b.WriteString("  None\n")
+
+	standupData := StandupData{
+		DateLabel:       target.Format("Monday, Jan 02"),
+		YesterdayDate:   yesterdayStr,
+		YesterdayGroups: buildReportGroups(groupByProject(yesterdayEntries)),
+		TodayGroups:     buildReportGroups(groupByProject(todayEntries)),
+		OpenItems:       openItems(allEntries, true),
+		Links:           collectLinks(allEntries),
 	}
 
-	// Links section
-	links := collectLinks(allEntries)
-	if len(links) > 0 {
-		b.WriteString("\n*Links:*\n")
-		for _, l := range links {
-			fmt.Fprintf(&b, "  • %s: %s\n", l.Label, l.URL)
-		}
+	tmplStr := loadPrompt("standup")
+	if tmplStr == "" {
+		tmplStr = defaultStandupTemplate
 	}
-
-	return b.String()
+	return executeReportTemplate("standup", tmplStr, standupData)
 }
 
 func formatWeekly(start, end time.Time) string {
@@ -424,90 +511,32 @@ func formatWeekly(start, end time.Time) string {
 		}
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "*Weekly Status — Week of %s*\n\n", start.Format("Jan 02, 2006"))
-
-	if len(weekEntries) == 0 {
-		b.WriteString("No sessions recorded this week.\n")
-		return b.String()
-	}
-
 	groups := groupByProject(weekEntries)
 	sort.Slice(groups, func(i, j int) bool {
 		return len(groups[i].Entries) > len(groups[j].Entries)
 	})
 
-	// Accomplishments
-	b.WriteString("*Accomplishments:*\n")
-	for _, g := range groups {
-		branches := collectBranches(g.Entries)
-		branchStr := ""
-		if len(branches) > 0 {
-			branchStr = " (" + strings.Join(branches, ", ") + ")"
-		}
-		dur := sumDurations(g.Entries)
-		durStr := formatDuration(dur)
-
-		count := len(g.Entries)
-		plural := "s"
-		if count == 1 {
-			plural = ""
-		}
-
-		header := fmt.Sprintf("  *`%s`* — %d session%s%s", g.Project, count, plural, branchStr)
-		if durStr != "" {
-			header += " " + durStr
-		}
-		fmt.Fprintf(&b, "%s\n", header)
-
-		for _, bul := range doneBullets(g.Entries) {
-			fmt.Fprintf(&b, "    • %s\n", bul)
-		}
-	}
-	b.WriteString("\n")
-
-	// Key Decisions
-	decisions := decisionItems(weekEntries)
-	if len(decisions) > 0 {
-		b.WriteString("*Key Decisions:*\n")
-		for _, d := range decisions {
-			fmt.Fprintf(&b, "  • %s\n", d)
-		}
-		b.WriteString("\n")
-	}
-
-	// Open/Carry-Forward
-	open := openItems(weekEntries, true)
-	if len(open) > 0 {
-		b.WriteString("*Open/Carry-Forward:*\n")
-		for _, item := range open {
-			fmt.Fprintf(&b, "  • %s\n", item)
-		}
-		b.WriteString("\n")
-	}
-
-	// Links
-	links := collectLinks(weekEntries)
-	if len(links) > 0 {
-		b.WriteString("*Links:*\n")
-		for _, l := range links {
-			fmt.Fprintf(&b, "  • %s: %s\n", l.Label, l.URL)
-		}
-		b.WriteString("\n")
-	}
-
 	activeDays := make(map[string]bool)
 	for _, e := range weekEntries {
 		activeDays[e.Date] = true
 	}
-	daysPlural := "s"
-	if len(activeDays) == 1 {
-		daysPlural = ""
-	}
-	fmt.Fprintf(&b, "_%d sessions across %d project%s, %d active day%s_\n",
-		len(weekEntries), len(groups), plural(len(groups)), len(activeDays), daysPlural)
 
-	return b.String()
+	weeklyData := WeeklyData{
+		WeekLabel:     start.Format("Jan 02, 2006"),
+		Groups:        buildReportGroups(groups),
+		Decisions:     decisionItems(weekEntries),
+		OpenItems:     openItems(weekEntries, true),
+		Links:         collectLinks(weekEntries),
+		TotalSessions: len(weekEntries),
+		TotalProjects: len(groups),
+		ActiveDays:    len(activeDays),
+	}
+
+	tmplStr := loadPrompt("weekly")
+	if tmplStr == "" {
+		tmplStr = defaultWeeklyTemplate
+	}
+	return executeReportTemplate("weekly", tmplStr, weeklyData)
 }
 
 func plural(n int) string {

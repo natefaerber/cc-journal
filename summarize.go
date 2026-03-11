@@ -383,6 +383,10 @@ func loadPrompt(name string) string {
 		return defaultPromptTemplate
 	case "rollup":
 		return defaultRollupTemplate
+	case "standup":
+		return defaultStandupTemplate
+	case "weekly":
+		return defaultWeeklyTemplate
 	}
 	return ""
 }

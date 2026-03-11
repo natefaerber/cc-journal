@@ -11,6 +11,8 @@ import (
 var builtinPrompts = map[string]string{
 	"summary": defaultPromptTemplate,
 	"rollup":  defaultRollupTemplate,
+	"standup": defaultStandupTemplate,
+	"weekly":  defaultWeeklyTemplate,
 }
 
 func runInit(args []string) {
