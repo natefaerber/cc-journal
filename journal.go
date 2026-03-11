@@ -1,0 +1,378 @@
+package main
+
+import (
+	"math"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
+)
+
+type Entry struct {
+	Date         string
+	Project      string
+	Branch       string
+	TimeRange    string
+	SessionID    string
+	Cwd          string
+	Summary      string
+	HasAISummary bool
+	Links        []ExternalLink
+}
+
+type ProjectCount struct {
+	Name  string
+	Count int
+}
+
+type Stats struct {
+	TotalSessions int
+	TotalDays     int
+	TotalProjects int
+	ThisWeek      int
+	Streak        int
+	MostActive    string
+	MondayLabel   string
+}
+
+type Bar struct {
+	Date      string
+	Count     int
+	HeightPct float64
+	ShowLabel bool
+	Label     string
+}
+
+type HeatmapDay struct {
+	Date     string
+	Count    int
+	Level    int
+	IsFuture bool
+}
+
+type DashboardData struct {
+	Stats    Stats
+	Projects []ProjectCount
+	Bars     []Bar
+	Heatmap  []HeatmapDay
+	Recent   []Entry
+}
+
+type JournalData struct {
+	Entries    []Entry
+	DailyFiles []string
+	Projects   []ProjectCount
+}
+
+var (
+	headingRe   = regexp.MustCompile(`(?m)^##\s+(.+?)\s+\((.+?)\)\s+—\s+(.+?)$`)
+	sessionIDRe = regexp.MustCompile(`<code>([a-f0-9-]+)</code>`)
+	cwdRe       = regexp.MustCompile(`<code>(/[^<]+)</code>`)
+	summaryRe   = regexp.MustCompile(`(?ms)^##.+?\n\n(.*?)(?:\n<details>|\z)`)
+	separatorRe = regexp.MustCompile(`(?m)^---\s*$`)
+	linkRe      = regexp.MustCompile(`- \[(.+?)\]\((.+?)\)`)
+)
+
+func journalDir() string {
+	return cfg.JournalDir
+}
+
+func parseJournalFiles() JournalData {
+	dir := journalDir()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return JournalData{}
+	}
+
+	var allEntries []Entry
+	var dailyFiles []string
+	projectCounts := make(map[string]int)
+
+	files := make([]string, 0)
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") && !strings.Contains(e.Name(), "rollup") {
+			files = append(files, e.Name())
+		}
+	}
+	sort.Strings(files)
+
+	for _, fname := range files {
+		dailyFiles = append(dailyFiles, fname)
+		date := strings.TrimSuffix(fname, ".md")
+		content, err := os.ReadFile(filepath.Join(dir, fname))
+		if err != nil {
+			continue
+		}
+
+		sections := separatorRe.Split(string(content), -1)
+		for _, section := range sections {
+			matches := headingRe.FindStringSubmatch(section)
+			if matches == nil {
+				continue
+			}
+
+			project := strings.TrimSpace(matches[1])
+			branch := strings.TrimSpace(matches[2])
+			timeRange := strings.TrimSpace(matches[3])
+
+			sessionID := ""
+			if m := sessionIDRe.FindStringSubmatch(section); m != nil {
+				sessionID = m[1]
+			}
+
+			cwd := ""
+			if m := cwdRe.FindStringSubmatch(section); m != nil {
+				cwd = m[1]
+			}
+
+			summary := ""
+			if m := summaryRe.FindStringSubmatch(section); m != nil {
+				summary = strings.TrimSpace(m[1])
+			}
+
+			// Parse stored links from <details><summary>Links</summary> block
+			var links []ExternalLink
+			if strings.Contains(section, "<summary>Links</summary>") {
+				for _, m := range linkRe.FindAllStringSubmatch(section, -1) {
+					link := classifyURL(m[2])
+					if link != nil {
+						links = append(links, *link)
+					} else {
+						// Fallback: store as-is
+						links = append(links, ExternalLink{Label: m[1], URL: m[2]})
+					}
+				}
+			}
+			// Also extract issue keys from summary text
+			if issueLinks := extractIssueKeysFromText(summary); len(issueLinks) > 0 {
+				seen := make(map[string]bool)
+				for _, l := range links {
+					seen[l.Label] = true
+				}
+				for _, l := range issueLinks {
+					if !seen[l.Label] {
+						links = append(links, l)
+					}
+				}
+			}
+
+			allEntries = append(allEntries, Entry{
+				Date:         date,
+				Project:      project,
+				Branch:       branch,
+				TimeRange:    timeRange,
+				SessionID:    sessionID,
+				Cwd:          cwd,
+				Summary:      summary,
+				HasAISummary: !strings.HasPrefix(summary, "**Prompts:**"),
+				Links:        links,
+			})
+			projectCounts[project]++
+		}
+	}
+
+	// Sort projects by count descending
+	projects := make([]ProjectCount, 0, len(projectCounts))
+	for name, count := range projectCounts {
+		projects = append(projects, ProjectCount{name, count})
+	}
+	sort.Slice(projects, func(i, j int) bool {
+		return projects[i].Count > projects[j].Count
+	})
+
+	return JournalData{
+		Entries:    allEntries,
+		DailyFiles: dailyFiles,
+		Projects:   projects,
+	}
+}
+
+func computeStats(data JournalData) Stats {
+	now := time.Now()
+	today := now.Format("2006-01-02")
+
+	// Monday of this week
+	weekday := int(now.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	monday := now.AddDate(0, 0, -(weekday - 1))
+	mondayStr := monday.Format("2006-01-02")
+
+	uniqueDays := make(map[string]bool)
+	thisWeek := 0
+	for _, e := range data.Entries {
+		uniqueDays[e.Date] = true
+		if e.Date >= mondayStr {
+			thisWeek++
+		}
+	}
+
+	// Streak
+	dates := make([]string, 0, len(uniqueDays))
+	for d := range uniqueDays {
+		dates = append(dates, d)
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(dates)))
+
+	streak := 0
+	check := today
+	for _, d := range dates {
+		if d == check {
+			streak++
+			t, _ := time.Parse("2006-01-02", check)
+			check = t.AddDate(0, 0, -1).Format("2006-01-02")
+		} else if d < check {
+			break
+		}
+	}
+
+	mostActive := "n/a"
+	if len(data.Projects) > 0 {
+		mostActive = data.Projects[0].Name
+	}
+
+	return Stats{
+		TotalSessions: len(data.Entries),
+		TotalDays:     len(uniqueDays),
+		TotalProjects: len(data.Projects),
+		ThisWeek:      thisWeek,
+		Streak:        streak,
+		MostActive:    mostActive,
+		MondayLabel:   monday.Format("Jan 02"),
+	}
+}
+
+func computeActivity(entries []Entry, days int) []Bar {
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	counts := make(map[string]int)
+	for _, e := range entries {
+		counts[e.Date]++
+	}
+
+	maxCount := 1
+	for _, c := range counts {
+		if c > maxCount {
+			maxCount = c
+		}
+	}
+
+	bars := make([]Bar, 0, days)
+	for i := days - 1; i >= 0; i-- {
+		d := today.AddDate(0, 0, -i)
+		dateStr := d.Format("2006-01-02")
+		count := counts[dateStr]
+		heightPct := math.Max(float64(count)/float64(maxCount)*100, 2)
+		showLabel := d.Weekday() == time.Monday || d.Day() == 1
+
+		bars = append(bars, Bar{
+			Date:      dateStr,
+			Count:     count,
+			HeightPct: math.Round(heightPct*10) / 10,
+			ShowLabel: showLabel,
+			Label:     d.Format("Jan 02"),
+		})
+	}
+	return bars
+}
+
+func computeHeatmap(entries []Entry, weeks int) []HeatmapDay {
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	counts := make(map[string]int)
+	for _, e := range entries {
+		counts[e.Date]++
+	}
+
+	maxCount := 1
+	for _, c := range counts {
+		if c > maxCount {
+			maxCount = c
+		}
+	}
+
+	// Start from Monday of (weeks) weeks ago
+	weekday := int(today.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	start := today.AddDate(0, 0, -(weekday-1)-(weeks-1)*7)
+
+	days := make([]HeatmapDay, 0, weeks*7)
+	for i := 0; i < weeks*7; i++ {
+		d := start.AddDate(0, 0, i)
+		dateStr := d.Format("2006-01-02")
+		count := counts[dateStr]
+
+		level := 0
+		if count > 0 {
+			ratio := float64(count) / float64(maxCount)
+			switch {
+			case ratio <= 0.25:
+				level = 1
+			case ratio <= 0.5:
+				level = 2
+			case ratio <= 0.75:
+				level = 3
+			default:
+				level = 4
+			}
+		}
+
+		days = append(days, HeatmapDay{
+			Date:     dateStr,
+			Count:    count,
+			Level:    level,
+			IsFuture: d.After(today),
+		})
+	}
+	return days
+}
+
+func buildDashboard(data JournalData) DashboardData {
+	stats := computeStats(data)
+	bars := computeActivity(data.Entries, 28)
+	heatmap := computeHeatmap(data.Entries, 8)
+
+	// Recent entries
+	recent := make([]Entry, len(data.Entries))
+	copy(recent, data.Entries)
+	sort.Slice(recent, func(i, j int) bool {
+		if recent[i].Date != recent[j].Date {
+			return recent[i].Date > recent[j].Date
+		}
+		return recent[i].TimeRange > recent[j].TimeRange
+	})
+	if len(recent) > 15 {
+		recent = recent[:15]
+	}
+
+	return DashboardData{
+		Stats:    stats,
+		Projects: data.Projects,
+		Bars:     bars,
+		Heatmap:  heatmap,
+		Recent:   recent,
+	}
+}
+
+// SummaryPreview returns a truncated, cleaned summary for table display.
+func (e Entry) SummaryPreview() string {
+	s := e.Summary
+	if len(s) == 0 {
+		return ""
+	}
+	// Strip markdown bold
+	boldRe := regexp.MustCompile(`\*\*(.+?)\*\*`)
+	s = boldRe.ReplaceAllString(s, "$1")
+	s = strings.ReplaceAll(s, "\n", " ")
+	if len(s) > 120 {
+		s = s[:117] + "..."
+	}
+	return s
+}

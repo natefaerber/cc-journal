@@ -1,0 +1,217 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}} | cc-journal</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-background: #f5f0e8;
+      --color-foreground: #1a1a1a;
+      --color-card: #fffdf7;
+      --color-card-foreground: #1a1a1a;
+      --color-muted: #ece7dc;
+      --color-muted-foreground: #78716c;
+      --color-border: #d6cfc4;
+      --color-accent: #2563eb;
+      --color-accent-foreground: #ffffff;
+      --color-secondary: #7c3aed;
+      --color-warning: #92400e;
+      --color-ring: #2563eb;
+    }
+  </style>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap');
+    body { font-family: "Source Serif 4", Georgia, "Times New Roman", serif; }
+    .font-sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .font-mono { font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace; }
+  </style>
+</head>
+<body class="bg-background text-foreground min-h-screen flex flex-col">
+  <nav class="border-b border-border bg-card/90 backdrop-blur-sm sticky top-0 z-50">
+    <div class="max-w-5xl mx-auto px-8 h-12 flex items-center justify-between">
+      <a href="/" class="font-bold text-foreground hover:text-accent transition-colors tracking-tight italic">cc-journal</a>
+      <div class="flex gap-6">
+        <a href="/" class="text-xs font-sans font-medium text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider">Dashboard</a>
+        <a href="/daily" class="text-xs font-sans font-medium text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider">Daily</a>
+        <a href="/standup" class="text-xs font-sans font-medium text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider">Standup</a>
+        <a href="/weekly" class="text-xs font-sans font-medium text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider">Weekly</a>
+        <button onclick="openPalette()" class="text-xs font-sans text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 ml-2" title="Command palette (Cmd+K)">
+          <kbd class="text-[10px] font-medium bg-muted px-1.5 py-0.5 rounded border border-border">&#8984;K</kbd>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="flex-1 max-w-5xl w-full mx-auto px-8 py-8">
+    {{template "content" .}}
+  </main>
+
+  <footer class="border-t border-border py-4 text-center text-xs text-muted-foreground font-sans">
+    Built with Go
+  </footer>
+
+  <!-- Command Palette -->
+  <div id="palette-overlay" class="fixed inset-0 z-[100] bg-foreground/40 backdrop-blur-sm hidden" onclick="closePalette()">
+    <div class="max-w-lg mx-auto mt-[15vh]" onclick="event.stopPropagation()">
+      <div class="bg-card rounded-lg shadow-2xl border border-border overflow-hidden">
+        <div class="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <svg class="w-4 h-4 text-muted-foreground shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          <input id="palette-input" type="text" placeholder="Search pages, projects, dates, sessions…"
+            class="flex-1 bg-transparent text-sm font-sans text-foreground placeholder:text-muted-foreground outline-none"
+            autocomplete="off" spellcheck="false">
+          <kbd class="text-[10px] font-sans font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border">esc</kbd>
+        </div>
+        <div id="palette-results" class="max-h-[60vh] overflow-y-auto">
+          <div class="px-4 py-8 text-center text-sm text-muted-foreground font-sans">Loading…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  var resumeSvg = '<svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v12l4-3 4 3V2H3z"/><path d="M7 6h4M9 4v4"/></svg>';
+  var checkSvg = '<svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l3 3 7-7"/></svg>';
+  function copyResume(sessionId, cwd) {
+    var cmd = cwd ? 'cd ' + cwd + ' && claude --resume ' + sessionId : 'claude --resume ' + sessionId;
+    navigator.clipboard.writeText(cmd).then(function() {
+      var btn = event.currentTarget;
+      btn.classList.add('text-accent', 'border-accent');
+      btn.innerHTML = checkSvg;
+      btn.title = 'Copied!';
+      setTimeout(function() {
+        btn.classList.remove('text-accent', 'border-accent');
+        btn.innerHTML = resumeSvg;
+        btn.title = 'Copy claude --resume command to clipboard';
+      }, 2000);
+    });
+  }
+
+  // Command palette
+  var paletteData = null;
+  var paletteFiltered = [];
+  var paletteIdx = -1;
+  var typeLabels = {page:'Pages', project:'Projects', date:'Dates', session:'Sessions'};
+  var typeIcons = {page:'\u2302', project:'\u25CB', date:'\u25A1', session:'\u25B8'};
+
+  function openPalette() {
+    var el = document.getElementById('palette-overlay');
+    el.classList.remove('hidden');
+    var input = document.getElementById('palette-input');
+    input.value = '';
+    input.focus();
+    if (!paletteData) {
+      fetch('/api/palette').then(function(r){return r.json()}).then(function(d){
+        paletteData = d;
+        filterPalette('');
+      });
+    } else {
+      filterPalette('');
+    }
+  }
+
+  function closePalette() {
+    document.getElementById('palette-overlay').classList.add('hidden');
+    paletteIdx = -1;
+  }
+
+  function filterPalette(q) {
+    if (!paletteData) return;
+    q = q.toLowerCase();
+    paletteFiltered = q ? paletteData.filter(function(item) {
+      return item.title.toLowerCase().indexOf(q) !== -1 ||
+             item.desc.toLowerCase().indexOf(q) !== -1 ||
+             item.type.toLowerCase().indexOf(q) !== -1;
+    }) : paletteData;
+    paletteIdx = paletteFiltered.length > 0 ? 0 : -1;
+    renderPalette();
+  }
+
+  function renderPalette() {
+    var container = document.getElementById('palette-results');
+    if (paletteFiltered.length === 0) {
+      container.innerHTML = '<div class="px-4 py-8 text-center text-sm text-muted-foreground font-sans">No results</div>';
+      return;
+    }
+    var html = '';
+    var lastType = '';
+    for (var i = 0; i < paletteFiltered.length; i++) {
+      var item = paletteFiltered[i];
+      if (item.type !== lastType) {
+        lastType = item.type;
+        html += '<div class="px-4 pt-3 pb-1 text-[10px] font-sans font-semibold text-muted-foreground uppercase tracking-wider">' + (typeLabels[item.type]||item.type) + '</div>';
+      }
+      var active = i === paletteIdx;
+      html += '<a href="' + item.url + '" data-idx="' + i + '" class="palette-item flex items-center gap-3 px-4 py-2 cursor-pointer transition-colors ' +
+        (active ? 'bg-accent/10 text-accent' : 'text-foreground hover:bg-muted') + '"' +
+        ' onmouseenter="paletteHover(' + i + ')">' +
+        '<span class="text-xs font-mono opacity-50 w-4 text-center">' + (typeIcons[item.type]||'') + '</span>' +
+        '<span class="flex-1 min-w-0">' +
+        '<span class="text-sm font-sans block truncate">' + escHtml(item.title) + '</span>' +
+        '<span class="text-xs font-sans text-muted-foreground block truncate">' + escHtml(item.desc) + '</span>' +
+        '</span></a>';
+    }
+    container.innerHTML = html;
+    scrollToActive();
+  }
+
+  function paletteHover(idx) {
+    paletteIdx = idx;
+    renderPalette();
+  }
+
+  function scrollToActive() {
+    var el = document.querySelector('.palette-item[data-idx="' + paletteIdx + '"]');
+    if (el) el.scrollIntoView({block:'nearest'});
+  }
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  document.getElementById('palette-input').addEventListener('input', function(e) {
+    filterPalette(e.target.value);
+  });
+
+  document.getElementById('palette-input').addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (paletteIdx < paletteFiltered.length - 1) { paletteIdx++; renderPalette(); }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (paletteIdx > 0) { paletteIdx--; renderPalette(); }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (paletteIdx >= 0 && paletteIdx < paletteFiltered.length) {
+        window.location.href = paletteFiltered[paletteIdx].url;
+        closePalette();
+      }
+    } else if (e.key === 'Escape') {
+      closePalette();
+    }
+  });
+
+  // Global vim nav + Cmd-K palette
+  document.addEventListener('keydown', function(e) {
+    // Cmd/Ctrl+K opens palette
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      var overlay = document.getElementById('palette-overlay');
+      if (overlay.classList.contains('hidden')) { openPalette(); } else { closePalette(); }
+      return;
+    }
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'Escape') { closePalette(); return; }
+    if (e.key === 'h') { history.back(); }
+    else if (e.key === 'l') { history.forward(); }
+    else if (e.key === 'g') { window.scrollTo({top: 0, behavior: 'smooth'}); }
+    else if (e.key === 'G') { window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}); }
+  });
+  </script>
+</body>
+</html>
+{{end}}

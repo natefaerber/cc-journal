@@ -1,0 +1,36 @@
+{{define "content"}}
+<h1 class="text-2xl font-bold mb-6 tracking-tight">Daily Entries</h1>
+<div class="bg-card border border-border rounded-lg shadow-sm divide-y divide-border/50">
+  {{range .Days}}
+  <a href="/daily/{{.Date}}" class="daily-row flex items-center gap-4 py-3 px-4 hover:bg-muted/30 transition-colors group outline-none focus:bg-accent/10 focus:text-accent">
+    <span class="font-mono text-accent text-sm group-hover:text-accent/80 group-focus:text-accent transition-colors min-w-[7rem]">{{.Date}}</span>
+    <span class="text-xs font-sans font-medium text-foreground/70">{{.Count}} session{{if ne .Count 1}}s{{end}}</span>
+    {{if .TimeSpan}}<span class="text-xs font-mono text-muted-foreground">{{.TimeSpan}}</span>{{end}}
+    <span class="text-xs font-sans text-muted-foreground truncate">{{range $i, $p := .Projects}}{{if $i}}, {{end}}{{$p}}{{end}}</span>
+  </a>
+  {{end}}
+</div>
+
+<script>
+(function() {
+  var rows = document.querySelectorAll('.daily-row');
+  var idx = -1;
+
+  function focus(i) {
+    if (i < 0 || i >= rows.length) return;
+    idx = i;
+    rows[idx].focus();
+    rows[idx].scrollIntoView({block: 'nearest'});
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.metaKey || e.ctrlKey) return;
+    if (e.key === 'j') { e.preventDefault(); focus(idx + 1); }
+    else if (e.key === 'k') { e.preventDefault(); focus(idx - 1); }
+    else if (e.key === 'Enter' && idx >= 0) { rows[idx].click(); }
+    else if (e.key === 'Escape') { if (idx >= 0) { rows[idx].blur(); idx = -1; } }
+  });
+})();
+</script>
+{{end}}

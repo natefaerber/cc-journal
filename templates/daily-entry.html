@@ -1,0 +1,346 @@
+{{define "content"}}
+<style>
+  .session-section {
+    padding: 1.25rem 1.5rem;
+    margin: 0 -0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid transparent;
+    transition: opacity 0.3s ease, border-color 0.2s ease;
+  }
+  .session-section:hover {
+    border-color: var(--color-border);
+  }
+  .has-focus .session-section:not(.session-focused) {
+    opacity: 0.2;
+  }
+  .session-focused {
+    scroll-margin-top: 5rem;
+    border-color: var(--color-accent) !important;
+    background: rgba(37, 99, 235, 0.03);
+  }
+  .permalink-icon {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  .session-section:hover .permalink-icon,
+  .session-focused .permalink-icon {
+    opacity: 1;
+  }
+  .session-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 0.65rem;
+    color: var(--color-muted-foreground);
+  }
+  .session-meta code {
+    font-size: 0.65rem !important;
+    background: transparent !important;
+    padding: 0 !important;
+    color: var(--color-muted-foreground) !important;
+  }
+  .session-actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-left: auto;
+  }
+  .session-actions button, .session-actions a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border);
+    border-radius: 0.25rem;
+    padding: 0.2rem;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .session-actions .action-link {
+    color: var(--color-muted-foreground);
+  }
+  .session-actions .action-link:hover {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+  .session-actions .action-resume {
+    color: var(--color-accent);
+  }
+  .session-actions .action-resume:hover {
+    border-color: var(--color-accent);
+    background: rgba(37, 99, 235, 0.1);
+  }
+  .session-actions .action-delete {
+    color: var(--color-muted-foreground);
+  }
+  .session-actions .action-delete:hover {
+    color: #ef4444;
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+  }
+  .shortcut-hint {
+    font-size: 0.55rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+    color: var(--color-muted-foreground);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  .session-focused .shortcut-hint {
+    opacity: 0.7;
+  }
+</style>
+
+<nav class="flex items-center justify-between mb-6 text-sm font-sans">
+  {{if .PrevDate}}
+  <a id="prev-day" href="/daily/{{.PrevDate}}" class="flex items-center gap-1 text-muted-foreground hover:text-accent transition-colors no-underline">
+    <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg>
+    {{.PrevDate}}
+  </a>
+  {{else}}<span></span>{{end}}
+  <span class="text-xs text-muted-foreground font-mono">{{.Title}}</span>
+  {{if .NextDate}}
+  <a id="next-day" href="/daily/{{.NextDate}}" class="flex items-center gap-1 text-muted-foreground hover:text-accent transition-colors no-underline">
+    {{.NextDate}}
+    <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg>
+  </a>
+  {{else}}<span></span>{{end}}
+</nav>
+
+<article class="journal-entry prose max-w-none
+  [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-2 [&_h1]:text-foreground [&_h1]:tracking-tight
+  [&_h2]:text-sm [&_h2]:font-mono [&_h2]:font-medium [&_h2]:text-muted-foreground [&_h2]:mt-6 [&_h2]:mb-4 [&_h2]:pb-2 [&_h2]:border-b [&_h2]:border-border
+  [&_h3]:text-xs [&_h3]:font-sans [&_h3]:font-semibold [&_h3]:uppercase [&_h3]:tracking-widest [&_h3]:text-accent [&_h3]:mt-5 [&_h3]:mb-2
+  [&_hr]:border-border [&_hr]:my-4
+  [&_p]:my-2.5 [&_p]:leading-relaxed [&_p]:text-foreground/80 [&_p]:text-[0.9rem]
+  [&_strong]:text-foreground [&_strong]:font-semibold
+  [&_code]:font-mono [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-warning [&_code]:text-xs
+  [&_ul]:my-2 [&_ul]:ml-5 [&_ul]:list-disc
+  [&_li]:my-1 [&_li]:text-[0.9rem] [&_li]:leading-relaxed [&_li]:text-foreground/80
+  [&_a]:text-accent [&_a]:underline [&_a]:underline-offset-2 [&_a]:decoration-accent/30 hover:[&_a]:decoration-accent
+  [&_pre]:bg-muted/50 [&_pre]:border [&_pre]:border-border [&_pre]:rounded-lg [&_pre]:p-4 [&_pre]:text-xs [&_pre]:overflow-x-auto
+">
+  {{.Content}}
+</article>
+
+<script>
+var trashSvg = '<svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M4 4l1 9a1 1 0 001 1h4a1 1 0 001-1l1-9"/></svg>';
+var linkSvg = '<svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 8.5a3.5 3.5 0 005 0l2-2a3.5 3.5 0 00-5-5l-1 1"/><path d="M9.5 7.5a3.5 3.5 0 00-5 0l-2 2a3.5 3.5 0 005 5l1-1"/></svg>';
+
+function copyText(el, text) {
+  navigator.clipboard.writeText(text);
+  var orig = el.textContent;
+  el.textContent = 'Copied!';
+  el.classList.add('text-accent');
+  setTimeout(function() {
+    el.textContent = orig;
+    el.classList.remove('text-accent');
+  }, 1200);
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+  // Wrap each session (h2 + content + details) in a section div.
+  // Transform <details> into a flat metadata bar.
+  document.querySelectorAll('.journal-entry details').forEach(function(det) {
+    var codes = det.querySelectorAll('code');
+    var sessionId = '', cwd = '';
+    codes.forEach(function(c) {
+      var t = c.textContent.trim();
+      if (/^[a-f0-9-]+$/.test(t)) sessionId = t;
+      else if (t.startsWith('/')) cwd = t;
+    });
+    if (!sessionId) return;
+
+    // Find the h2 that starts this session
+    var h2 = null;
+    var prev = det.previousElementSibling;
+    while (prev) {
+      if (prev.tagName === 'H2') { h2 = prev; break; }
+      if (prev.tagName === 'DETAILS') break;
+      prev = prev.previousElementSibling;
+    }
+    if (!h2) return;
+
+    // Collect all elements from h2 through the details block
+    var elements = [];
+    var node = h2;
+    while (node) {
+      elements.push(node);
+      if (node === det) break;
+      node = node.nextElementSibling;
+    }
+
+    // Create wrapper
+    var wrapper = document.createElement('div');
+    wrapper.id = sessionId;
+    wrapper.className = 'session-section';
+    wrapper.dataset.sessionId = sessionId;
+    wrapper.dataset.cwd = cwd;
+    h2.parentNode.insertBefore(wrapper, h2);
+    elements.forEach(function(el) { wrapper.appendChild(el); });
+
+    // Replace <details> with flat metadata bar
+    var metaBar = document.createElement('div');
+    metaBar.className = 'session-meta';
+    metaBar.innerHTML =
+      '<code class="cursor-pointer hover:text-accent transition-colors" onclick="copyText(this, \'' + sessionId + '\')" title="Click to copy session ID">' + sessionId + '</code>' +
+      (cwd ? '<span>\u00B7</span><code class="cursor-pointer hover:text-accent transition-colors" onclick="copyText(this, \'' + cwd.replace(/'/g, "\\'") + '\')" title="Click to copy path">' + cwd + '</code>' : '') +
+      '<div class="session-actions">' +
+        '<a href="#' + sessionId + '" class="action-link" title="Copy permalink (y)" data-action="link">' + linkSvg + '<span class="shortcut-hint ml-0.5">y</span></a>' +
+        '<button class="action-resume" title="Copy resume command (r)" data-action="resume">' + resumeSvg + '<span class="shortcut-hint ml-0.5">r</span></button>' +
+        '<button class="action-delete" title="Delete entry (x)" data-action="delete">' + trashSvg + '<span class="shortcut-hint ml-0.5">x</span></button>' +
+      '</div>';
+    det.replaceWith(metaBar);
+
+    // Permalink icon on h2
+    var link = document.createElement('a');
+    link.href = '#' + sessionId;
+    link.className = 'permalink-icon inline-flex items-center text-muted-foreground hover:text-accent transition-colors no-underline ml-auto';
+    link.title = 'Permalink';
+    link.innerHTML = linkSvg;
+    link.onclick = function(e) { e.preventDefault(); copyPermalink(sessionId); };
+    h2.style.display = 'flex';
+    h2.style.alignItems = 'center';
+    h2.appendChild(link);
+
+    // Wire up action buttons
+    metaBar.querySelector('[data-action="link"]').onclick = function(e) {
+      e.preventDefault();
+      copyPermalink(sessionId);
+    };
+    metaBar.querySelector('[data-action="resume"]').onclick = function(e) {
+      e.stopPropagation();
+      copyResume(sessionId, cwd);
+    };
+    metaBar.querySelector('[data-action="delete"]').onclick = function(e) {
+      e.stopPropagation();
+      deleteEntry(wrapper, sessionId);
+    };
+  });
+
+  function copyPermalink(sessionId) {
+    var url = window.location.origin + window.location.pathname + '#' + sessionId;
+    navigator.clipboard.writeText(url);
+    history.replaceState(null, '', '#' + sessionId);
+    flash('Copied link');
+  }
+
+  function deleteEntry(section, sessionId) {
+    if (!confirm('Delete this session entry? It will be excluded from future backfills.')) return;
+    fetch('/api/remove', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'session_id=' + encodeURIComponent(sessionId)
+    }).then(function(res) {
+      if (res.ok) {
+        var hr = section.previousElementSibling;
+        if (hr && hr.tagName === 'HR') hr.remove();
+        section.remove();
+      } else {
+        alert('Failed to delete entry.');
+      }
+    });
+  }
+
+  function flash(msg) {
+    var el = document.createElement('div');
+    el.textContent = msg;
+    el.className = 'fixed bottom-4 right-4 bg-card border border-border text-foreground/80 text-xs font-sans px-3 py-2 rounded-lg shadow-lg z-50';
+    document.body.appendChild(el);
+    setTimeout(function() { el.remove(); }, 1500);
+  }
+
+  // Focus target section from URL hash
+  if (window.location.hash) {
+    var target = document.getElementById(window.location.hash.slice(1));
+    if (target && target.classList.contains('session-section')) {
+      var article = document.querySelector('.journal-entry');
+      article.classList.add('has-focus');
+      target.classList.add('session-focused');
+      target.scrollIntoView({behavior: 'smooth', block: 'start'});
+
+      document.addEventListener('click', function clearFocus(e) {
+        if (!e.target.closest('.session-focused')) {
+          article.classList.remove('has-focus');
+          target.classList.remove('session-focused');
+          document.removeEventListener('click', clearFocus);
+          history.replaceState(null, '', window.location.pathname);
+        }
+      });
+    }
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.metaKey || e.ctrlKey) return;
+
+    var sections = Array.from(document.querySelectorAll('.journal-entry .session-section'));
+    if (!sections.length) return;
+    var article = document.querySelector('.journal-entry');
+
+    // Find currently focused section
+    var currentIdx = -1;
+    sections.forEach(function(s, i) {
+      if (s.classList.contains('session-focused')) currentIdx = i;
+    });
+
+    // j/k: navigate sessions
+    if (e.key === 'j' || e.key === 'k') {
+      e.preventDefault();
+      var nextIdx;
+      if (e.key === 'j') {
+        nextIdx = currentIdx < sections.length - 1 ? currentIdx + 1 : sections.length - 1;
+      } else {
+        nextIdx = currentIdx > 0 ? currentIdx - 1 : 0;
+      }
+      sections.forEach(function(s) { s.classList.remove('session-focused'); });
+      article.classList.add('has-focus');
+      sections[nextIdx].classList.add('session-focused');
+      sections[nextIdx].scrollIntoView({behavior: 'smooth', block: 'start'});
+      history.replaceState(null, '', '#' + sections[nextIdx].id);
+      return;
+    }
+
+    // Escape: clear focus
+    if (e.key === 'Escape') {
+      article.classList.remove('has-focus');
+      sections.forEach(function(s) { s.classList.remove('session-focused'); });
+      history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+
+    // Actions on focused session
+    if (currentIdx >= 0) {
+      var focused = sections[currentIdx];
+      var sid = focused.dataset.sessionId;
+      var cwd = focused.dataset.cwd;
+
+      if (e.key === 'y' && sid) {
+        e.preventDefault();
+        copyPermalink(sid);
+      } else if (e.key === 'r' && sid) {
+        e.preventDefault();
+        copyResume(sid, cwd);
+        flash('Copied resume command');
+      } else if (e.key === 'x' && sid) {
+        e.preventDefault();
+        deleteEntry(focused, sid);
+      }
+    }
+
+    // [ / ] for prev/next day
+    if (e.key === '[') {
+      var prev = document.getElementById('prev-day');
+      if (prev) prev.click();
+    } else if (e.key === ']') {
+      var next = document.getElementById('next-day');
+      if (next) next.click();
+    }
+  });
+});
+</script>
+{{end}}
