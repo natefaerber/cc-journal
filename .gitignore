@@ -16,3 +16,6 @@ dist/
 
 # Mise
 .mise/local/
+
+# Playwright
+.playwright-mcp/
