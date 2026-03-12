@@ -406,13 +406,18 @@ func serve(port int, templatesDir string) {
 				}
 			}
 			raw := formatDaily(targetDate)
+			// Prev/next skip Sat/Sun (weekends are always Sat+Sun)
 			prevDate := targetDate.AddDate(0, 0, -1)
 			if targetDate.Weekday() == time.Monday {
-				prevDate = targetDate.AddDate(0, 0, -3)
+				prevDate = targetDate.AddDate(0, 0, -3) // Fri
+			} else if targetDate.Weekday() == time.Sunday {
+				prevDate = targetDate.AddDate(0, 0, -2) // Fri
 			}
 			nextDate := targetDate.AddDate(0, 0, 1)
 			if targetDate.Weekday() == time.Friday {
-				nextDate = targetDate.AddDate(0, 0, 3)
+				nextDate = targetDate.AddDate(0, 0, 3) // Mon
+			} else if targetDate.Weekday() == time.Saturday {
+				nextDate = targetDate.AddDate(0, 0, 2) // Mon
 			}
 			nextURL := ""
 			if !nextDate.After(time.Now()) {

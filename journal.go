@@ -34,7 +34,7 @@ type Stats struct {
 	ThisWeek      int
 	Streak        int
 	MostActive    string
-	MondayLabel   string
+	WeekStartLabel string
 }
 
 type Bar struct {
@@ -193,19 +193,15 @@ func computeStats(data JournalData) Stats {
 	now := time.Now()
 	today := now.Format("2006-01-02")
 
-	// Monday of this week
-	weekday := int(now.Weekday())
-	if weekday == 0 {
-		weekday = 7
-	}
-	monday := now.AddDate(0, 0, -(weekday - 1))
-	mondayStr := monday.Format("2006-01-02")
+	// First day of this week
+	weekStart := startOfWeek(now)
+	weekStartStr := weekStart.Format("2006-01-02")
 
 	uniqueDays := make(map[string]bool)
 	thisWeek := 0
 	for _, e := range data.Entries {
 		uniqueDays[e.Date] = true
-		if e.Date >= mondayStr {
+		if e.Date >= weekStartStr {
 			thisWeek++
 		}
 	}
@@ -241,7 +237,7 @@ func computeStats(data JournalData) Stats {
 		ThisWeek:      thisWeek,
 		Streak:        streak,
 		MostActive:    mostActive,
-		MondayLabel:   monday.Format("Jan 02"),
+		WeekStartLabel: weekStart.Format("Jan 02"),
 	}
 }
 
@@ -267,7 +263,7 @@ func computeActivity(entries []Entry, days int) []Bar {
 		dateStr := d.Format("2006-01-02")
 		count := counts[dateStr]
 		heightPct := math.Max(float64(count)/float64(maxCount)*100, 2)
-		showLabel := d.Weekday() == time.Monday || d.Day() == 1
+		showLabel := d.Weekday() == weekStartDay() || d.Day() == 1
 
 		bars = append(bars, Bar{
 			Date:      dateStr,
@@ -296,12 +292,9 @@ func computeHeatmap(entries []Entry, weeks int) []HeatmapDay {
 		}
 	}
 
-	// Start from Monday of (weeks) weeks ago
-	weekday := int(today.Weekday())
-	if weekday == 0 {
-		weekday = 7
-	}
-	start := today.AddDate(0, 0, -(weekday-1)-(weeks-1)*7)
+	// Start from first day of (weeks) weeks ago
+	thisWeekStart := startOfWeek(today)
+	start := thisWeekStart.AddDate(0, 0, -(weeks-1)*7)
 
 	days := make([]HeatmapDay, 0, weeks*7)
 	for i := 0; i < weeks*7; i++ {

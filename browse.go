@@ -61,18 +61,14 @@ func showWeek(targetDate string) {
 		}
 	}
 
-	// Find Monday of the week
-	weekday := target.Weekday()
-	if weekday == time.Sunday {
-		weekday = 7
-	}
-	monday := target.AddDate(0, 0, -int(weekday-time.Monday))
+	// Find first day of the week
+	ws := startOfWeek(target)
 
-	fmt.Printf("Week of %s\n\n", monday.Format("2006-01-02"))
+	fmt.Printf("Week of %s\n\n", ws.Format("2006-01-02"))
 
 	found := false
 	for i := 0; i < 7; i++ {
-		day := monday.AddDate(0, 0, i)
+		day := ws.AddDate(0, 0, i)
 		date := day.Format("2006-01-02")
 		file := filepath.Join(journalDir(), date+".md")
 		content, err := os.ReadFile(file)
@@ -85,7 +81,7 @@ func showWeek(targetDate string) {
 	}
 
 	if !found {
-		fmt.Fprintf(os.Stderr, "No journal entries for week of %s.\n", monday.Format("2006-01-02"))
+		fmt.Fprintf(os.Stderr, "No journal entries for week of %s.\n", ws.Format("2006-01-02"))
 	}
 }
 
@@ -101,11 +97,7 @@ func generateRollup(targetDate string) {
 		}
 	}
 
-	weekday := target.Weekday()
-	if weekday == time.Sunday {
-		weekday = 7
-	}
-	monday := target.AddDate(0, 0, -int(weekday-time.Monday))
+	monday := startOfWeek(target)
 
 	// Collect daily contents
 	var combined []string

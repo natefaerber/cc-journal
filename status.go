@@ -301,15 +301,10 @@ func decisionItems(entries []Entry) []string {
 	return items
 }
 
-// weekRange returns the Monday and Sunday of the week containing the given date.
+// weekRange returns the first and last day of the week containing the given date.
 func weekRange(t time.Time) (start, end time.Time) {
-	weekday := int(t.Weekday())
-	if weekday == 0 {
-		weekday = 7
-	}
-	monday := t.AddDate(0, 0, -(weekday - 1))
-	sunday := monday.AddDate(0, 0, 6)
-	return monday, sunday
+	s := startOfWeek(t)
+	return s, s.AddDate(0, 0, 6)
 }
 
 // ReportGroup holds pre-computed data for a project group in report templates.
@@ -461,10 +456,12 @@ func executeReportTemplate(name, tmplStr string, data interface{}) string {
 func formatDaily(target time.Time) string {
 	today := target.Format("2006-01-02")
 
-	// Yesterday (skip weekends)
+	// Yesterday (skip weekends — always Sat/Sun regardless of week_start)
 	yesterday := target.AddDate(0, 0, -1)
 	if target.Weekday() == time.Monday {
-		yesterday = target.AddDate(0, 0, -3) // Friday
+		yesterday = target.AddDate(0, 0, -3) // Fri
+	} else if target.Weekday() == time.Sunday {
+		yesterday = target.AddDate(0, 0, -2) // Fri
 	}
 	yesterdayStr := yesterday.Format("2006-01-02")
 

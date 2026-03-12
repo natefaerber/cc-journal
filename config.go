@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -37,6 +38,7 @@ type Config struct {
 	Exclude    []string    `yaml:"exclude"`
 	Model      string      `yaml:"model"`
 	APIKey     string      `yaml:"api_key"`
+	WeekStart  string      `yaml:"week_start"` // "monday" (default) or "sunday"
 	Slack      SlackConfig `yaml:"slack"`
 	Links      LinksConfig `yaml:"links"`
 }
@@ -113,5 +115,30 @@ func loadConfig() Config {
 		cfg.Model = defaultConfig.Model
 	}
 
+	// Normalize week_start
+	cfg.WeekStart = strings.ToLower(strings.TrimSpace(cfg.WeekStart))
+	if cfg.WeekStart != "sunday" {
+		cfg.WeekStart = "monday"
+	}
+
 	return cfg
+}
+
+// weekStartDay returns time.Monday or time.Sunday based on config.
+func weekStartDay() time.Weekday {
+	if cfg.WeekStart == "sunday" {
+		return time.Sunday
+	}
+	return time.Monday
+}
+
+// startOfWeek returns the first day of the week containing t, based on config.
+func startOfWeek(t time.Time) time.Time {
+	d := t.Weekday()
+	start := weekStartDay()
+	offset := int(d) - int(start)
+	if offset < 0 {
+		offset += 7
+	}
+	return t.AddDate(0, 0, -offset)
 }
