@@ -2,6 +2,10 @@
 
 A single Go binary that captures, summarizes, and visualizes your Claude Code sessions as a developer journal.
 
+<p align="center">
+  <img src="docs/images/architecture.png" alt="cc-journal architecture" width="800">
+</p>
+
 ```
 Claude Code session ends
   → SessionEnd hook reads transcript JSONL
@@ -108,6 +112,10 @@ cc-journal today
 
 ### Site
 
+<p align="center">
+  <img src="docs/images/ui-flow.png" alt="cc-journal dashboard and UI" width="800">
+</p>
+
 ```sh
 cc-journal serve [--port 8000] [--templates DIR]   # Dev server with live data
 cc-journal build [--out public] [--templates DIR]   # Static HTML generation
@@ -148,8 +156,8 @@ cc-journal rollup [DATE]               # Generate AI weekly rollup
 ### Reports
 
 ```sh
-cc-journal standup [--copy] [--slack [CHANNEL]]  # Daily standup
-cc-journal weekly  [--copy] [--slack [CHANNEL]]  # Weekly status by project
+cc-journal standup [DATE] [--copy] [--slack [CHANNEL]]          # Daily standup (default: today)
+cc-journal weekly  [START] [--end END] [--copy] [--slack [CHANNEL]]  # Weekly status (default: this week)
 ```
 
 `--copy` copies to clipboard. `--slack` sends to Slack (channel overrides config default).
@@ -289,15 +297,23 @@ Templates use [Tailwind CSS v4](https://tailwindcss.com/) (CDN) and [Source Seri
 
 ## Prompt customization
 
-AI summary prompts can be customized per-installation:
+All AI and report prompts can be customized per-installation:
 
 ```sh
-# Export the default prompt
+# Export all default prompts
 cc-journal init --prompts
 
-# Edit ~/.config/cc-journal/prompts/summary.txt
-# The prompt uses {{.Project}}, {{.Branch}}, and {{.Transcript}} placeholders
+# Edit any prompt in ~/.config/cc-journal/prompts/
 ```
+
+| Prompt | Purpose | Template Variables |
+|--------|---------|-------------------|
+| `summary.txt` | Session summarization (Anthropic API) | `{{.Project}}`, `{{.Branch}}`, `{{.Transcript}}` |
+| `rollup.txt` | Weekly rollup generation (Anthropic API) | `{{.Week}}`, `{{.Content}}` |
+| `standup.txt` | Daily standup report format (Go text/template) | `.DateLabel`, `.YesterdayGroups`, `.TodayGroups`, `.OpenItems`, `.Links` |
+| `weekly.txt` | Weekly status report format (Go text/template) | `.WeekLabel`, `.Groups`, `.Decisions`, `.OpenItems`, `.Links`, `.TotalSessions`, `.TotalProjects`, `.ActiveDays` |
+
+Report templates (`standup.txt`, `weekly.txt`) use Go's `text/template` syntax with full access to loops, conditionals, and the pre-computed data structs.
 
 ## Project structure
 
