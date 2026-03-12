@@ -1,5 +1,6 @@
 [tools]
 go = "1.25"
+usage = "latest"
 
 [tasks.build]
 description = "Build cc-journal binary"
@@ -44,3 +45,25 @@ pkill -f 'cc-journal.*serve' 2>/dev/null && echo "Stopped cc-journal server." ||
 [tasks.clean]
 description = "Remove build artifacts"
 run = "rm -f cc-journal"
+
+[tasks.render]
+description = "Generate completions and docs from usage spec"
+depends = ["render:*"]
+
+[tasks."render:completions"]
+description = "Generate shell completions from usage spec"
+run = """
+mkdir -p completions
+usage g completion bash -f cc-journal.usage.kdl cc-journal > completions/cc-journal.bash
+usage g completion zsh -f cc-journal.usage.kdl cc-journal > completions/_cc-journal
+usage g completion fish -f cc-journal.usage.kdl cc-journal > completions/cc-journal.fish
+echo "Generated completions in completions/"
+"""
+
+[tasks."render:docs"]
+description = "Generate markdown CLI docs from usage spec"
+run = """
+rm -rf docs/cli && mkdir -p docs/cli
+usage g markdown -mf cc-journal.usage.kdl --out-dir docs/cli
+echo "Generated docs in docs/cli/"
+"""
