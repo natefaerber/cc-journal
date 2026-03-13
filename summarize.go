@@ -22,6 +22,26 @@ const (
 	maxTranscriptChars = 80_000
 )
 
+// TokenUsage tracks token consumption for a session and its summarization.
+type TokenUsage struct {
+	InputTokens              int64
+	OutputTokens             int64
+	CacheCreationInputTokens int64
+	CacheReadInputTokens     int64
+	SummaryInputTokens       int64
+	SummaryOutputTokens      int64
+}
+
+// SessionTokens returns total tokens from the Claude Code session (excluding summarizer).
+func (t TokenUsage) SessionTokens() int64 {
+	return t.InputTokens + t.OutputTokens + t.CacheCreationInputTokens + t.CacheReadInputTokens
+}
+
+// TotalTokens returns all tokens including summarizer.
+func (t TokenUsage) TotalTokens() int64 {
+	return t.SessionTokens() + t.SummaryInputTokens + t.SummaryOutputTokens
+}
+
 // transcriptMessage is a single user/assistant message extracted from a JSONL transcript.
 type transcriptMessage struct {
 	Role string
@@ -46,6 +66,7 @@ type sessionMeta struct {
 	FirstTime string
 	LastTime  string
 	Links     []ExternalLink
+	Tokens    TokenUsage
 }
 
 // BranchDisplay returns a comma-separated list of unique branch names, or "n/a" if empty.
@@ -226,6 +247,27 @@ func parseTranscript(path string) (*sessionMeta, error) {
 		}
 
 		entryType, _ := entry["type"].(string)
+
+		// Accumulate token usage from assistant messages
+		if entryType == "assistant" {
+			if msg, ok := entry["message"].(map[string]interface{}); ok {
+				if usage, ok := msg["usage"].(map[string]interface{}); ok {
+					if v, ok := usage["input_tokens"].(float64); ok {
+						meta.Tokens.InputTokens += int64(v)
+					}
+					if v, ok := usage["output_tokens"].(float64); ok {
+						meta.Tokens.OutputTokens += int64(v)
+					}
+					if v, ok := usage["cache_creation_input_tokens"].(float64); ok {
+						meta.Tokens.CacheCreationInputTokens += int64(v)
+					}
+					if v, ok := usage["cache_read_input_tokens"].(float64); ok {
+						meta.Tokens.CacheReadInputTokens += int64(v)
+					}
+				}
+			}
+		}
+
 		if entryType != "user" && entryType != "assistant" {
 			continue
 		}
@@ -391,8 +433,19 @@ func loadPrompt(name string) string {
 	return ""
 }
 
+// apiResponse is the parsed Anthropic API response.
+type apiResponse struct {
+	Content []struct {
+		Text string `json:"text"`
+	} `json:"content"`
+	Usage struct {
+		InputTokens  int64 `json:"input_tokens"`
+		OutputTokens int64 `json:"output_tokens"`
+	} `json:"usage"`
+}
+
 // callAnthropicAPI sends the transcript to the API for summarization.
-func callAnthropicAPI(apiKey, transcript, project, branch string) (string, error) {
+func callAnthropicAPI(apiKey, transcript, project, branch string) (string, TokenUsage, error) {
 	tmplStr := loadPrompt("summary")
 	prompt := strings.NewReplacer(
 		"{{.Project}}", project,
@@ -415,27 +468,27 @@ func callAnthropicAPI(apiKey, transcript, project, branch string) (string, error
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("API request failed: %w", err)
+		return "", TokenUsage{}, fmt.Errorf("API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("API returned %d: %s", resp.StatusCode, string(respBody[:min(len(respBody), 200)]))
+		return "", TokenUsage{}, fmt.Errorf("API returned %d: %s", resp.StatusCode, string(respBody[:min(len(respBody), 200)]))
 	}
 
-	var result struct {
-		Content []struct {
-			Text string `json:"text"`
-		} `json:"content"`
-	}
+	var result apiResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
-		return "", fmt.Errorf("failed to parse API response: %w", err)
+		return "", TokenUsage{}, fmt.Errorf("failed to parse API response: %w", err)
 	}
 	if len(result.Content) == 0 {
-		return "", fmt.Errorf("empty API response")
+		return "", TokenUsage{}, fmt.Errorf("empty API response")
 	}
-	return result.Content[0].Text, nil
+	tokens := TokenUsage{
+		SummaryInputTokens:  result.Usage.InputTokens,
+		SummaryOutputTokens: result.Usage.OutputTokens,
+	}
+	return result.Content[0].Text, tokens, nil
 }
 
 // callAnthropicAPIRaw sends a raw prompt to the API with a custom max_tokens.
@@ -464,11 +517,7 @@ func callAnthropicAPIRaw(apiKey, prompt string, maxTokens int) (string, error) {
 		return "", fmt.Errorf("API returned %d: %s", resp.StatusCode, string(respBody[:min(len(respBody), 200)]))
 	}
 
-	var result struct {
-		Content []struct {
-			Text string `json:"text"`
-		} `json:"content"`
-	}
+	var result apiResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return "", fmt.Errorf("failed to parse API response: %w", err)
 	}
@@ -508,6 +557,14 @@ func appendToJournal(meta *sessionMeta, summary string) error {
 		cwdLine = fmt.Sprintf("\n<code>%s</code>", meta.CWD)
 	}
 
+	tokensLine := ""
+	if meta.Tokens.SessionTokens() > 0 || meta.Tokens.SummaryInputTokens > 0 {
+		tokensLine = fmt.Sprintf("\n<code>tokens:in=%d,out=%d,cache_create=%d,cache_read=%d,summary_in=%d,summary_out=%d</code>",
+			meta.Tokens.InputTokens, meta.Tokens.OutputTokens,
+			meta.Tokens.CacheCreationInputTokens, meta.Tokens.CacheReadInputTokens,
+			meta.Tokens.SummaryInputTokens, meta.Tokens.SummaryOutputTokens)
+	}
+
 	linksBlock := formatLinksForJournal(meta.Links)
 
 	entry := fmt.Sprintf(`---
@@ -518,10 +575,10 @@ func appendToJournal(meta *sessionMeta, summary string) error {
 
 %s<details>
 <summary>Session ID</summary>
-<code>%s</code>%s
+<code>%s</code>%s%s
 </details>
 
-`, meta.Project, branch, timeRange, summary, linksBlock, meta.SessionID, cwdLine)
+`, meta.Project, branch, timeRange, summary, linksBlock, meta.SessionID, cwdLine, tokensLine)
 
 	f, err := os.OpenFile(journalFile, os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
@@ -609,11 +666,13 @@ func summarizeSession(sessionID string, force bool) {
 
 	fmt.Println("Generating summary...")
 	transcript := buildTranscriptText(meta.Messages)
-	summary, err := callAnthropicAPI(apiKey, transcript, meta.Project, meta.BranchDisplay())
+	summary, summaryTokens, err := callAnthropicAPI(apiKey, transcript, meta.Project, meta.BranchDisplay())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+	meta.Tokens.SummaryInputTokens = summaryTokens.SummaryInputTokens
+	meta.Tokens.SummaryOutputTokens = summaryTokens.SummaryOutputTokens
 
 	if err := appendToJournal(meta, summary); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing journal: %v\n", err)

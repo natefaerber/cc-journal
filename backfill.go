@@ -119,7 +119,11 @@ func runBackfill(days int, dryRun bool) {
 		}
 
 		transcript := buildTranscriptText(meta.Messages)
-		summary, err := callAnthropicAPI(apiKey, transcript, meta.Project, meta.BranchDisplay())
+		summary, summaryTokens, err := callAnthropicAPI(apiKey, transcript, meta.Project, meta.BranchDisplay())
+		if err == nil {
+			meta.Tokens.SummaryInputTokens = summaryTokens.SummaryInputTokens
+			meta.Tokens.SummaryOutputTokens = summaryTokens.SummaryOutputTokens
+		}
 		if err != nil {
 			fmt.Printf("    Failed: %v\n", err)
 			continue
@@ -148,6 +152,14 @@ func runBackfill(days int, dryRun bool) {
 			cwdLine = fmt.Sprintf("\n<code>%s</code>", meta.CWD)
 		}
 
+		tokensLine := ""
+		if meta.Tokens.SessionTokens() > 0 || meta.Tokens.SummaryInputTokens > 0 {
+			tokensLine = fmt.Sprintf("\n<code>tokens:in=%d,out=%d,cache_create=%d,cache_read=%d,summary_in=%d,summary_out=%d</code>",
+				meta.Tokens.InputTokens, meta.Tokens.OutputTokens,
+				meta.Tokens.CacheCreationInputTokens, meta.Tokens.CacheReadInputTokens,
+				meta.Tokens.SummaryInputTokens, meta.Tokens.SummaryOutputTokens)
+		}
+
 		timeRange := "unknown"
 		if meta.FirstTime != "" && meta.LastTime != "" {
 			if st, err := time.Parse(time.RFC3339Nano, meta.FirstTime); err == nil {
@@ -165,10 +177,10 @@ func runBackfill(days int, dryRun bool) {
 
 <details>
 <summary>Session ID</summary>
-<code>%s</code>%s
+<code>%s</code>%s%s
 </details>
 
-`, meta.Project, branch, timeRange, summary, sessionID, cwdLine)
+`, meta.Project, branch, timeRange, summary, sessionID, cwdLine, tokensLine)
 
 		f, err := os.OpenFile(journalFile, os.O_APPEND|os.O_WRONLY, 0o644)
 		if err != nil {

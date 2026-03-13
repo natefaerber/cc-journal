@@ -309,11 +309,13 @@ func weekRange(t time.Time) (start, end time.Time) {
 
 // ReportGroup holds pre-computed data for a project group in report templates.
 type ReportGroup struct {
-	Project  string
-	Branches string
-	Duration string
-	Sessions int
-	Bullets  []string
+	Project   string
+	Branches  string
+	Duration  string
+	Sessions  int
+	Bullets   []string
+	TokensIn  int64
+	TokensOut int64
 }
 
 // StandupData is the template data for daily standup reports.
@@ -336,6 +338,8 @@ type WeeklyData struct {
 	TotalSessions int
 	TotalProjects int
 	ActiveDays    int
+	TotalTokensIn  int64
+	TotalTokensOut int64
 }
 
 func buildReportGroups(groups []projectGroup) []ReportGroup {
@@ -347,12 +351,19 @@ func buildReportGroups(groups []projectGroup) []ReportGroup {
 			branchStr = strings.Join(branches, ", ")
 		}
 		dur := sumDurations(g.Entries)
+		var tokIn, tokOut int64
+		for _, e := range g.Entries {
+			tokIn += e.Tokens.InputTokens + e.Tokens.CacheCreationInputTokens + e.Tokens.CacheReadInputTokens
+			tokOut += e.Tokens.OutputTokens
+		}
 		out = append(out, ReportGroup{
-			Project:  g.Project,
-			Branches: branchStr,
-			Duration: formatDuration(dur),
-			Sessions: len(g.Entries),
-			Bullets:  doneBullets(g.Entries),
+			Project:   g.Project,
+			Branches:  branchStr,
+			Duration:  formatDuration(dur),
+			Sessions:  len(g.Entries),
+			Bullets:   doneBullets(g.Entries),
+			TokensIn:  tokIn,
+			TokensOut: tokOut,
 		})
 	}
 	return out
@@ -363,7 +374,7 @@ const defaultStandupTemplate = `*Daily Standup — {{.DateLabel}}*
 *Yesterday:*
 {{- if .YesterdayGroups}}
 {{- range .YesterdayGroups}}
-  ` + "`" + `{{.Project}}` + "`" + ` ({{.Branches}}){{if .Duration}} {{.Duration}}{{end}}
+  ` + "`" + `{{.Project}}` + "`" + ` ({{.Branches}}){{if .Duration}} {{.Duration}}{{end}}{{if gt .TokensIn 0}} {{formatTokens .TokensIn}}/{{formatTokens .TokensOut}}{{end}}
 {{- range .Bullets}}
     • {{.}}
 {{- end}}
@@ -375,7 +386,7 @@ const defaultStandupTemplate = `*Daily Standup — {{.DateLabel}}*
 *Today:*
 {{- if .TodayGroups}}
 {{- range .TodayGroups}}
-  ` + "`" + `{{.Project}}` + "`" + ` ({{.Branches}}){{if .Duration}} {{.Duration}}{{end}}
+  ` + "`" + `{{.Project}}` + "`" + ` ({{.Branches}}){{if .Duration}} {{.Duration}}{{end}}{{if gt .TokensIn 0}} {{formatTokens .TokensIn}}/{{formatTokens .TokensOut}}{{end}}
 {{- range .Bullets}}
     • {{.}}
 {{- end}}
@@ -436,12 +447,23 @@ No sessions recorded this week.
 {{- end}}
 {{- end}}
 
-_{{.TotalSessions}} sessions across {{.TotalProjects}} project{{if ne .TotalProjects 1}}s{{end}}, {{.ActiveDays}} active day{{if ne .ActiveDays 1}}s{{end}}_
+_{{.TotalSessions}} sessions across {{.TotalProjects}} project{{if ne .TotalProjects 1}}s{{end}}, {{.ActiveDays}} active day{{if ne .ActiveDays 1}}s{{end}}{{if gt .TotalTokensIn 0}}, {{formatTokens .TotalTokensIn}}/{{formatTokens .TotalTokensOut}} tokens{{end}}_
 {{- end}}
 `
 
 func executeReportTemplate(name, tmplStr string, data interface{}) string {
-	tmpl, err := template.New(name).Parse(tmplStr)
+	reportFuncMap := template.FuncMap{
+		"formatTokens": func(n int64) string {
+			if n >= 1_000_000 {
+				return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
+			}
+			if n >= 1_000 {
+				return fmt.Sprintf("%.1fk", float64(n)/1_000)
+			}
+			return fmt.Sprintf("%d", n)
+		},
+	}
+	tmpl, err := template.New(name).Funcs(reportFuncMap).Parse(tmplStr)
 	if err != nil {
 		// Fallback: return error message
 		return fmt.Sprintf("Template error: %v", err)
@@ -514,19 +536,24 @@ func formatWeekly(start, end time.Time) string {
 	})
 
 	activeDays := make(map[string]bool)
+	var totalTokIn, totalTokOut int64
 	for _, e := range weekEntries {
 		activeDays[e.Date] = true
+		totalTokIn += e.Tokens.InputTokens + e.Tokens.CacheCreationInputTokens + e.Tokens.CacheReadInputTokens
+		totalTokOut += e.Tokens.OutputTokens
 	}
 
 	weeklyData := WeeklyData{
-		WeekLabel:     start.Format("Jan 02, 2006"),
-		Groups:        buildReportGroups(groups),
-		Decisions:     decisionItems(weekEntries),
-		OpenItems:     openItems(weekEntries, true),
-		Links:         collectLinks(weekEntries),
-		TotalSessions: len(weekEntries),
-		TotalProjects: len(groups),
-		ActiveDays:    len(activeDays),
+		WeekLabel:      start.Format("Jan 02, 2006"),
+		Groups:         buildReportGroups(groups),
+		Decisions:      decisionItems(weekEntries),
+		OpenItems:      openItems(weekEntries, true),
+		Links:          collectLinks(weekEntries),
+		TotalSessions:  len(weekEntries),
+		TotalProjects:  len(groups),
+		ActiveDays:     len(activeDays),
+		TotalTokensIn:  totalTokIn,
+		TotalTokensOut: totalTokOut,
 	}
 
 	tmplStr := loadPrompt("weekly")

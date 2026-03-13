@@ -127,6 +127,11 @@
 </article>
 
 <script>
+function formatTokenCount(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return String(n);
+}
 var trashSvg = '<svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M4 4l1 9a1 1 0 001 1h4a1 1 0 001-1l1-9"/></svg>';
 var linkSvg = '<svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 8.5a3.5 3.5 0 005 0l2-2a3.5 3.5 0 00-5-5l-1 1"/><path d="M9.5 7.5a3.5 3.5 0 00-5 0l-2 2a3.5 3.5 0 005 5l1-1"/></svg>';
 
@@ -146,11 +151,12 @@ window.addEventListener('DOMContentLoaded', function() {
   // Transform <details> into a flat metadata bar.
   document.querySelectorAll('.journal-entry details').forEach(function(det) {
     var codes = det.querySelectorAll('code');
-    var sessionId = '', cwd = '';
+    var sessionId = '', cwd = '', tokensStr = '';
     codes.forEach(function(c) {
       var t = c.textContent.trim();
       if (/^[a-f0-9-]+$/.test(t)) sessionId = t;
       else if (t.startsWith('/')) cwd = t;
+      else if (t.startsWith('tokens:')) tokensStr = t;
     });
     if (!sessionId) return;
 
@@ -185,9 +191,38 @@ window.addEventListener('DOMContentLoaded', function() {
     // Replace <details> with flat metadata bar
     var metaBar = document.createElement('div');
     metaBar.className = 'session-meta';
+    // Parse tokens string into display
+    var tokensHtml = '';
+    if (tokensStr) {
+      var parsed = {};
+      tokensStr.replace('tokens:', '').split(',').forEach(function(p) {
+        var kv = p.split('=');
+        parsed[kv[0]] = parseInt(kv[1]) || 0;
+      });
+      var sessIn = (parsed['in'] || 0) + (parsed['cache_create'] || 0) + (parsed['cache_read'] || 0);
+      var sessOut = parsed['out'] || 0;
+      var sumIn = parsed['summary_in'] || 0;
+      var sumOut = parsed['summary_out'] || 0;
+      if (sessIn > 0 || sessOut > 0) {
+        tokensHtml = '<span>\u00B7</span><span class="text-accent/70" title="Session: ' +
+          sessIn.toLocaleString() + ' in / ' + sessOut.toLocaleString() + ' out\n' +
+          'Summary: ' + sumIn.toLocaleString() + ' in / ' + sumOut.toLocaleString() + ' out\n' +
+          '(Cache create: ' + (parsed['cache_create']||0).toLocaleString() +
+          ', Cache read: ' + (parsed['cache_read']||0).toLocaleString() + ')">' +
+          formatTokenCount(sessIn) + ' / ' + formatTokenCount(sessOut) +
+          '</span>';
+        if (sumIn > 0 || sumOut > 0) {
+          tokensHtml += '<span class="text-muted-foreground/50" title="Summary tokens: ' +
+            sumIn.toLocaleString() + ' in / ' + sumOut.toLocaleString() + ' out">(+' +
+            formatTokenCount(sumIn + sumOut) + ' summary)</span>';
+        }
+      }
+    }
+
     metaBar.innerHTML =
       '<code class="cursor-pointer hover:text-accent transition-colors" onclick="copyText(this, \'' + sessionId + '\')" title="Click to copy session ID">' + sessionId + '</code>' +
       (cwd ? '<span>\u00B7</span><code class="cursor-pointer hover:text-accent transition-colors" onclick="copyText(this, \'' + cwd.replace(/'/g, "\\'") + '\')" title="Click to copy path">' + cwd + '</code>' : '') +
+      tokensHtml +
       '<div class="session-actions">' +
         '<a href="#' + sessionId + '" class="action-link" title="Copy permalink (y)" data-action="link">' + linkSvg + '<span class="shortcut-hint ml-0.5">y</span></a>' +
         '<button class="action-resume" title="Copy resume command (r)" data-action="resume">' + resumeSvg + '<span class="shortcut-hint ml-0.5">r</span></button>' +

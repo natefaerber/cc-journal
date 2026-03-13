@@ -15,6 +15,7 @@
         <th class="text-left px-3 py-2 text-[0.6rem] uppercase tracking-widest text-muted-foreground font-semibold">Branch</th>
         <th class="text-left px-3 py-2 text-[0.6rem] uppercase tracking-widest text-muted-foreground font-semibold">Time</th>
         <th class="text-left px-3 py-2 text-[0.6rem] uppercase tracking-widest text-muted-foreground font-semibold">Summary</th>
+        <th class="text-right px-3 py-2 text-[0.6rem] uppercase tracking-widest text-muted-foreground font-semibold">Tokens (in/out)</th>
         <th class="px-3 py-2 w-8"></th>
       </tr>
     </thead>
@@ -38,6 +39,7 @@
           </div>
           {{end}}
         </td>
+        <td class="px-3 py-2 text-right text-xs font-mono text-muted-foreground whitespace-nowrap">{{if gt (sessionTokens .Tokens) 0}}{{formatTokens (sessionInputTokens .Tokens)}} <span class="text-muted-foreground/50">/</span> {{formatTokens (sessionOutputTokens .Tokens)}}{{else}}&mdash;{{end}}</td>
         <td class="px-3 py-2 text-center">
           {{if .SessionID}}
           <button onclick="copyResume('{{.SessionID}}', '{{.Cwd}}')"

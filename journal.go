@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -20,6 +21,7 @@ type Entry struct {
 	Summary      string
 	HasAISummary bool
 	Links        []ExternalLink
+	Tokens       TokenUsage
 }
 
 type ProjectCount struct {
@@ -28,13 +30,17 @@ type ProjectCount struct {
 }
 
 type Stats struct {
-	TotalSessions int
-	TotalDays     int
-	TotalProjects int
-	ThisWeek      int
-	Streak        int
-	MostActive    string
-	WeekStartLabel string
+	TotalSessions        int
+	TotalDays            int
+	TotalProjects        int
+	ThisWeek             int
+	Streak               int
+	MostActive           string
+	WeekStartLabel       string
+	SessionInputTokens   int64 // input + cache_create + cache_read
+	SessionOutputTokens  int64
+	SummaryInputTokens   int64
+	SummaryOutputTokens  int64
 }
 
 type Bar struct {
@@ -70,6 +76,7 @@ var (
 	headingRe   = regexp.MustCompile(`(?m)^##\s+(.+?)\s+\((.+?)\)\s+—\s+(.+?)$`)
 	sessionIDRe = regexp.MustCompile(`<code>([a-f0-9-]+)</code>`)
 	cwdRe       = regexp.MustCompile(`<code>(/[^<]+)</code>`)
+	tokensRe    = regexp.MustCompile(`<code>tokens:in=(\d+),out=(\d+),cache_create=(\d+),cache_read=(\d+),summary_in=(\d+),summary_out=(\d+)</code>`)
 	summaryRe   = regexp.MustCompile(`(?ms)^##.+?\n\n(.*?)(?:\n<details>|\z)`)
 	separatorRe = regexp.MustCompile(`(?m)^---\s*$`)
 	linkRe      = regexp.MustCompile(`- \[(.+?)\]\((.+?)\)`)
@@ -145,7 +152,18 @@ func parseJournalFiles() JournalData {
 					}
 				}
 			}
-			// Also extract issue keys from summary text
+			// Parse token usage
+		var tokens TokenUsage
+		if m := tokensRe.FindStringSubmatch(section); m != nil {
+			tokens.InputTokens, _ = strconv.ParseInt(m[1], 10, 64)
+			tokens.OutputTokens, _ = strconv.ParseInt(m[2], 10, 64)
+			tokens.CacheCreationInputTokens, _ = strconv.ParseInt(m[3], 10, 64)
+			tokens.CacheReadInputTokens, _ = strconv.ParseInt(m[4], 10, 64)
+			tokens.SummaryInputTokens, _ = strconv.ParseInt(m[5], 10, 64)
+			tokens.SummaryOutputTokens, _ = strconv.ParseInt(m[6], 10, 64)
+		}
+
+		// Also extract issue keys from summary text
 			if issueLinks := extractIssueKeysFromText(summary); len(issueLinks) > 0 {
 				seen := make(map[string]bool)
 				for _, l := range links {
@@ -168,6 +186,7 @@ func parseJournalFiles() JournalData {
 				Summary:      summary,
 				HasAISummary: !strings.HasPrefix(summary, "**Prompts:**"),
 				Links:        links,
+				Tokens:       tokens,
 			})
 			projectCounts[project]++
 		}
@@ -199,11 +218,16 @@ func computeStats(data JournalData) Stats {
 
 	uniqueDays := make(map[string]bool)
 	thisWeek := 0
+	var sessIn, sessOut, sumIn, sumOut int64
 	for _, e := range data.Entries {
 		uniqueDays[e.Date] = true
 		if e.Date >= weekStartStr {
 			thisWeek++
 		}
+		sessIn += e.Tokens.InputTokens + e.Tokens.CacheCreationInputTokens + e.Tokens.CacheReadInputTokens
+		sessOut += e.Tokens.OutputTokens
+		sumIn += e.Tokens.SummaryInputTokens
+		sumOut += e.Tokens.SummaryOutputTokens
 	}
 
 	// Streak
@@ -231,13 +255,17 @@ func computeStats(data JournalData) Stats {
 	}
 
 	return Stats{
-		TotalSessions: len(data.Entries),
-		TotalDays:     len(uniqueDays),
-		TotalProjects: len(data.Projects),
-		ThisWeek:      thisWeek,
-		Streak:        streak,
-		MostActive:    mostActive,
-		WeekStartLabel: weekStart.Format("Jan 02"),
+		TotalSessions:       len(data.Entries),
+		TotalDays:           len(uniqueDays),
+		TotalProjects:       len(data.Projects),
+		ThisWeek:            thisWeek,
+		Streak:              streak,
+		MostActive:          mostActive,
+		WeekStartLabel:      weekStart.Format("Jan 02"),
+		SessionInputTokens:  sessIn,
+		SessionOutputTokens: sessOut,
+		SummaryInputTokens:  sumIn,
+		SummaryOutputTokens: sumOut,
 	}
 }
 

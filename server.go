@@ -25,6 +25,20 @@ var embeddedTemplates embed.FS
 
 var funcMap = template.FuncMap{
 	"sub": func(a, b int) int { return a - b },
+	"formatTokens": func(n int64) string {
+		if n >= 1_000_000 {
+			return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
+		}
+		if n >= 1_000 {
+			return fmt.Sprintf("%.1fk", float64(n)/1_000)
+		}
+		return fmt.Sprintf("%d", n)
+	},
+	"sessionTokens":    func(t TokenUsage) int64 { return t.SessionTokens() },
+	"sessionInputTokens": func(t TokenUsage) int64 {
+		return t.InputTokens + t.CacheCreationInputTokens + t.CacheReadInputTokens
+	},
+	"sessionOutputTokens": func(t TokenUsage) int64 { return t.OutputTokens },
 	"levelClass": func(level int) string {
 		if level == 0 {
 			return ""

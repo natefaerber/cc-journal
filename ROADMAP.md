@@ -28,7 +28,7 @@
 
 ## Usage Tracking
 
-- [ ] **Token tracking** — Track input/output tokens per session from Anthropic API responses; show cost and token usage in dashboard, daily views, and reports
+- [x] **Token tracking** — Track input/output/cache tokens per session from JSONL transcripts plus summarizer API usage; displayed in dashboard cards, session tables, daily view metadata, and standup/weekly reports
 
 ## Dashboard & UI
 
@@ -38,6 +38,7 @@
 - [ ] **Session timeline view** — Visual timeline of sessions within a day
 - [ ] **Trends & analytics** — Coding velocity charts, project distribution over time, streak tracking
 - [ ] **Theme support** — Switchable themes (light/dark/system) with CSS custom properties; allow users to define custom themes via config or template overrides
+- [ ] **Session info panel** — Slide-over panel on session click (like iOS Photos EXIF) showing full token breakdown (input, output, cache create, cache read, summary), cost estimate, duration, links, and session metadata without relying on hover tooltips
 - [ ] **Mobile-friendly layout** — Responsive design improvements for phone/tablet
 
 ## Journal Quality
@@ -56,6 +57,7 @@
 - [ ] **Plugin system** — Hooks for custom post-processing (e.g., auto-post to blog, sync to Notion)
 - [ ] **Export formats** — Export journal to CSV, JSON, or static site (beyond current static HTML)
 - [ ] **Backup & sync** — Optional git auto-commit for journal directory
+- [ ] **Changelog** — use git-cliff for detailed changelog creation
 
 ## Distribution & Setup
 
@@ -68,6 +70,7 @@
 ## Priority
 
 **Near-term focus:**
+
 1. Token tracking
 2. MCP server or REST API
 3. Search & filtering
