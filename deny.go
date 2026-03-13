@@ -107,6 +107,74 @@ func removeFromJournal(sessionID string) int {
 	return removed
 }
 
+// replaceWithStub replaces a session's entry with a redirect stub pointing to newDate.
+// Returns the date of the file the entry was found in, or "" if not found.
+func replaceWithStub(sessionID, newDate string) string {
+	dir := journalDir()
+	files, _ := filepath.Glob(filepath.Join(dir, "*.md"))
+	idPattern := regexp.MustCompile(`<code>` + regexp.QuoteMeta(sessionID) + `</code>`)
+
+	for _, f := range files {
+		content, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		if !idPattern.Match(content) {
+			continue
+		}
+
+		oldDate := strings.TrimSuffix(filepath.Base(f), ".md")
+
+		// Same day — just remove, caller will write the replacement
+		if oldDate == newDate {
+			removeFromJournal(sessionID)
+			return oldDate
+		}
+
+		// Different day — replace entry with a redirect stub
+		sections := splitSections(string(content))
+		var result []section
+		for _, s := range sections {
+			if s.isHeader {
+				result = append(result, s)
+				continue
+			}
+			if idPattern.MatchString(s.text) {
+				// Extract the heading line to preserve project/branch/time
+				heading := extractHeading(s.text)
+				stub := fmt.Sprintf(`
+
+## %s
+
+*Re-summarized → [%s](/daily/%s#%s)*
+
+<details>
+<summary>Session ID</summary>
+<code>%s</code>
+</details>
+
+`, heading, newDate, newDate, sessionID, sessionID)
+				result = append(result, section{text: stub, isHeader: false})
+			} else {
+				result = append(result, s)
+			}
+		}
+
+		var b strings.Builder
+		for i, s := range result {
+			if i > 0 && !s.isHeader {
+				b.WriteString("---")
+			}
+			b.WriteString(s.text)
+		}
+		out := strings.TrimRight(b.String(), "\n") + "\n"
+		_ = os.WriteFile(f, []byte(out), 0o644)
+
+		return oldDate
+	}
+	return ""
+}
+
 // runRemove removes a session entry and adds it to the deny list.
 func runRemove(sessionID string) {
 	if sessionID == "" {

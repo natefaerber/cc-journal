@@ -644,15 +644,6 @@ func summarizeSession(sessionID string, force bool) {
 	}
 	fmt.Printf("Session: %s\n", sid)
 
-	if isSessionJournaled(sid) {
-		if !force {
-			fmt.Println("Session already has a summary in the journal. Use --force to re-summarize.")
-			return
-		}
-		fmt.Println("Replacing existing journal entry...")
-		removeFromJournal(sid)
-	}
-
 	fmt.Println("Parsing transcript...")
 	meta, err := parseTranscript(path)
 	if err != nil {
@@ -665,6 +656,22 @@ func summarizeSession(sessionID string, force bool) {
 		return
 	}
 	fmt.Printf("Project: %s (%s), %d messages\n", meta.Project, meta.BranchDisplay(), len(meta.Messages))
+
+	if isSessionJournaled(sid) {
+		if !force {
+			fmt.Println("Session already has a summary in the journal. Use --force to re-summarize.")
+			return
+		}
+		// Compute target date for the new entry
+		targetDate := time.Now().Format("2006-01-02")
+		if meta.LastTime != "" {
+			if t, err := time.Parse(time.RFC3339Nano, meta.LastTime); err == nil {
+				targetDate = t.Local().Format("2006-01-02")
+			}
+		}
+		fmt.Println("Replacing existing journal entry...")
+		replaceWithStub(sid, targetDate)
+	}
 
 	fmt.Println("Getting API key...")
 	apiKey, err := getAPIKey()

@@ -181,11 +181,6 @@ func runBackfill(cutoff time.Time, dryRun bool, force bool) {
 			continue
 		}
 
-		// Replace existing entry if force re-summarizing
-		if force && alreadyDone {
-			removeFromJournal(sessionID)
-		}
-
 		// Extract external links
 		meta.Links = extractLinksFromTranscript(meta.Messages)
 		for _, m := range meta.Messages {
@@ -205,12 +200,17 @@ func runBackfill(cutoff time.Time, dryRun bool, force bool) {
 			continue
 		}
 
-		// Determine journal date from first timestamp
+		// Determine journal date from last timestamp
 		journalDate := time.Now().Format("2006-01-02")
-		if meta.FirstTime != "" {
-			if t, err := time.Parse(time.RFC3339Nano, meta.FirstTime); err == nil {
+		if meta.LastTime != "" {
+			if t, err := time.Parse(time.RFC3339Nano, meta.LastTime); err == nil {
 				journalDate = t.Local().Format("2006-01-02")
 			}
+		}
+
+		// Replace existing entry if force re-summarizing
+		if force && alreadyDone {
+			replaceWithStub(sessionID, journalDate)
 		}
 
 		// Write to the correct date's journal

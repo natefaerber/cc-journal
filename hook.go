@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type hookInput struct {
@@ -36,14 +37,21 @@ func runHook() {
 	if isDenied(input.SessionID) {
 		os.Exit(0)
 	}
-	// Replace existing entry (e.g. mid-session /summarize snapshot)
-	if isSessionJournaled(input.SessionID) {
-		removeFromJournal(input.SessionID)
-	}
 
 	meta, err := parseTranscript(input.TranscriptPath)
 	if err != nil || len(meta.Messages) == 0 {
 		os.Exit(0)
+	}
+
+	// Replace existing entry (e.g. mid-session /summarize snapshot)
+	if isSessionJournaled(input.SessionID) {
+		targetDate := time.Now().Format("2006-01-02")
+		if meta.LastTime != "" {
+			if t, err := time.Parse(time.RFC3339Nano, meta.LastTime); err == nil {
+				targetDate = t.Local().Format("2006-01-02")
+			}
+		}
+		replaceWithStub(input.SessionID, targetDate)
 	}
 	// Override with hook-provided values
 	if input.CWD != "" {
