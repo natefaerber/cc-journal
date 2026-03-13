@@ -534,7 +534,13 @@ func appendToJournal(meta *sessionMeta, summary string) error {
 		return fmt.Errorf("creating journal dir: %w", err)
 	}
 
+	// Write to the last day of the session (when work ended)
 	journalDate := time.Now().Format("2006-01-02")
+	if meta.LastTime != "" {
+		if t, err := time.Parse(time.RFC3339Nano, meta.LastTime); err == nil {
+			journalDate = t.Local().Format("2006-01-02")
+		}
+	}
 	journalFile := filepath.Join(dir, journalDate+".md")
 
 	// Parse time range, include dates if session spans multiple days
