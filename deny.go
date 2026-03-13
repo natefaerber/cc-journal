@@ -55,7 +55,7 @@ func addToDenyList(sessionID string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	_, err = fmt.Fprintln(f, sessionID)
 	return err
 }
@@ -100,7 +100,7 @@ func removeFromJournal(sessionID string) int {
 				b.WriteString(s.text)
 			}
 			result := strings.TrimRight(b.String(), "\n") + "\n"
-			os.WriteFile(f, []byte(result), 0o644)
+			_ = os.WriteFile(f, []byte(result), 0o644)
 		}
 	}
 

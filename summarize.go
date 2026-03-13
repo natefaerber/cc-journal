@@ -179,7 +179,7 @@ func peekCwd(path string) string {
 	if err != nil {
 		return ""
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 256*1024), 256*1024)
 	for i := 0; i < 20 && scanner.Scan(); i++ {
@@ -470,7 +470,7 @@ func callAnthropicAPI(apiKey, transcript, project, branch string) (string, Token
 	if err != nil {
 		return "", TokenUsage{}, fmt.Errorf("API request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
@@ -510,7 +510,7 @@ func callAnthropicAPIRaw(apiKey, prompt string, maxTokens int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("API request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {

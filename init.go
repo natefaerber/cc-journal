@@ -38,12 +38,18 @@ func runInit(args []string) {
 				return
 			}
 		}
-		os.WriteFile(path, data, 0o644)
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			fmt.Fprintf(os.Stderr, "  error: %v\n", err)
+			return
+		}
 		fmt.Printf("  wrote:  %s\n", path)
 	}
 
 	if doPrompts {
-		os.MkdirAll(cfg.PromptDir, 0o755)
+		if err := os.MkdirAll(cfg.PromptDir, 0o755); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to create prompt dir: %v\n", err)
+			return
+		}
 		for name, content := range builtinPrompts {
 			writeFile(filepath.Join(cfg.PromptDir, name+".txt"), []byte(content))
 		}
@@ -53,7 +59,10 @@ func runInit(args []string) {
 	if doTemplates {
 		cfgDir := configDir()
 		templatesDir := filepath.Join(cfgDir, "templates")
-		os.MkdirAll(templatesDir, 0o755)
+		if err := os.MkdirAll(templatesDir, 0o755); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to create templates dir: %v\n", err)
+			return
+		}
 
 		embeddedFS, _ := fs.Sub(embeddedTemplates, "templates")
 		entries, _ := fs.ReadDir(embeddedFS, ".")
@@ -96,7 +105,7 @@ func initStdout(doTemplates, doPrompts bool) {
 				continue
 			}
 			fmt.Printf("=== template: %s ===\n", e.Name())
-			os.Stdout.Write(data)
+			_, _ = os.Stdout.Write(data)
 			if len(data) > 0 && data[len(data)-1] != '\n' {
 				fmt.Println()
 			}

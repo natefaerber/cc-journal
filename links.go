@@ -136,7 +136,7 @@ func formatLinksForJournal(links []ExternalLink) string {
 	var b strings.Builder
 	b.WriteString("<details>\n<summary>Links</summary>\n\n")
 	for _, l := range links {
-		b.WriteString(fmt.Sprintf("- [%s](%s)\n", l.Label, l.URL))
+		fmt.Fprintf(&b, "- [%s](%s)\n", l.Label, l.URL)
 	}
 	b.WriteString("\n</details>\n")
 	return b.String()

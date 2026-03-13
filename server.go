@@ -289,7 +289,7 @@ func adjacentDates(date string, dates []string) (prev, next string) {
 func serve(port int, templatesDir string) {
 	http.HandleFunc("/api/remove", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", 405)
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		sessionID := r.FormValue("session_id")
@@ -303,7 +303,7 @@ func serve(port int, templatesDir string) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"removed":%d,"denied":true}`, removed)
+		_, _ = fmt.Fprintf(w, `{"removed":%d,"denied":true}`, removed)
 	})
 
 	http.HandleFunc("/api/palette", func(w http.ResponseWriter, r *http.Request) {
@@ -359,7 +359,7 @@ func serve(port int, templatesDir string) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(items)
+		_ = json.NewEncoder(w).Encode(items)
 	})
 
 	http.HandleFunc("/api/session/", func(w http.ResponseWriter, r *http.Request) {
@@ -372,7 +372,7 @@ func serve(port int, templatesDir string) {
 		for _, e := range data.Entries {
 			if e.SessionID == id {
 				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
 					"id":           e.SessionID,
 					"project":      e.Project,
 					"branch":       e.Branch,
@@ -398,12 +398,12 @@ func serve(port int, templatesDir string) {
 		q := r.URL.Query().Get("q")
 		if q == "" {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte("[]"))
+			_, _ = w.Write([]byte("[]"))
 			return
 		}
 		limit := 30
 		if v := r.URL.Query().Get("limit"); v != "" {
-			fmt.Sscanf(v, "%d", &limit)
+			_, _ = fmt.Sscanf(v, "%d", &limit)
 			if limit > 100 {
 				limit = 100
 			}
@@ -429,7 +429,7 @@ func serve(port int, templatesDir string) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(items)
+		_ = json.NewEncoder(w).Encode(items)
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -446,7 +446,7 @@ func serve(port int, templatesDir string) {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html")
-			w.Write(out)
+			_, _ = w.Write(out)
 
 		case path == "daily" || path == "daily/":
 			page := PageData{Title: "Daily Entries", Dates: getDates(data), Days: getDailyInfos(data)}
@@ -456,7 +456,7 @@ func serve(port int, templatesDir string) {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html")
-			w.Write(out)
+			_, _ = w.Write(out)
 
 		case strings.HasPrefix(path, "daily/"):
 			date := strings.TrimPrefix(path, "daily/")
@@ -491,7 +491,7 @@ func serve(port int, templatesDir string) {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html")
-			w.Write(out)
+			_, _ = w.Write(out)
 
 		case strings.HasPrefix(path, "project/"):
 			projectName := strings.TrimPrefix(path, "project/")
@@ -518,7 +518,7 @@ func serve(port int, templatesDir string) {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html")
-			w.Write(out)
+			_, _ = w.Write(out)
 
 		case path == "standup" || path == "standup/":
 			targetDate := time.Now()
@@ -562,7 +562,7 @@ func serve(port int, templatesDir string) {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html")
-			w.Write(out)
+			_, _ = w.Write(out)
 
 		case path == "weekly" || path == "weekly/":
 			now := time.Now()
@@ -607,7 +607,7 @@ func serve(port int, templatesDir string) {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html")
-			w.Write(out)
+			_, _ = w.Write(out)
 
 		default:
 			http.NotFound(w, r)

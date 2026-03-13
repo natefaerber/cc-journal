@@ -139,11 +139,17 @@ func runBackfill(days int, dryRun bool) {
 
 		// Write to the correct date's journal
 		dir := journalDir()
-		os.MkdirAll(dir, 0o755)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to create journal dir: %v\n", err)
+			continue
+		}
 		journalFile := filepath.Join(dir, journalDate+".md")
 
 		if _, err := os.Stat(journalFile); os.IsNotExist(err) {
-			os.WriteFile(journalFile, []byte(fmt.Sprintf("# Claude Code Journal — %s\n\n", journalDate)), 0o644)
+			if err := os.WriteFile(journalFile, []byte(fmt.Sprintf("# Claude Code Journal — %s\n\n", journalDate)), 0o644); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to create journal file: %v\n", err)
+				continue
+			}
 		}
 
 		branch := meta.BranchDisplay()
@@ -187,8 +193,15 @@ func runBackfill(days int, dryRun bool) {
 			fmt.Printf("    Failed to write: %v\n", err)
 			continue
 		}
-		f.WriteString(entry)
-		f.Close()
+		if _, err := f.WriteString(entry); err != nil {
+			fmt.Printf("    Failed to write entry: %v\n", err)
+			f.Close()
+			continue
+		}
+		if err := f.Close(); err != nil {
+			fmt.Printf("    Failed to close file: %v\n", err)
+			continue
+		}
 
 		summarized++
 		fmt.Printf("    Summarized → %s.md\n", journalDate)

@@ -116,7 +116,7 @@ func runSearch(args []string) {
 	limitStr := flagValue(args, "--limit")
 	limit := 20
 	if limitStr != "" {
-		fmt.Sscanf(limitStr, "%d", &limit)
+		_, _ = fmt.Sscanf(limitStr, "%d", &limit)
 	}
 
 	for i := 0; i < len(args); i++ {

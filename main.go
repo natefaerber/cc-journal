@@ -43,7 +43,7 @@ func main() {
 			fmt.Printf("API test error: %v\n", err)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		fmt.Printf("API test: HTTP %d\n", resp.StatusCode)
 		return
 	}

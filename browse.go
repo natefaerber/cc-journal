@@ -144,7 +144,10 @@ func generateRollup(targetDate string) {
 	// Save to file
 	_, week := monday.ISOWeek()
 	rollupFile := filepath.Join(journalDir(), fmt.Sprintf("%d-W%02d-rollup.md", monday.Year(), week))
-	os.WriteFile(rollupFile, []byte(summary+"\n"), 0o644)
+	if err := os.WriteFile(rollupFile, []byte(summary+"\n"), 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to write rollup: %v\n", err)
+		os.Exit(1)
+	}
 
 	fmt.Println(summary)
 	fmt.Printf("\nSaved to %s\n", rollupFile)
