@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // builtinPrompts maps prompt names to their default content.
@@ -39,6 +40,14 @@ func runInit(args []string) {
 	toStdout := hasFlag(args, "--stdout")
 
 	if !doTemplates && !doPrompts && !doCommands {
+		// If flags were passed but none matched, warn about unknown flags
+		for _, a := range args {
+			if strings.HasPrefix(a, "--") && a != "--force" && a != "--stdout" {
+				fmt.Fprintf(os.Stderr, "Unknown flag: %s\n", a)
+				fmt.Fprintf(os.Stderr, "Valid flags: --templates, --prompts, --commands, --all, --force, --stdout\n")
+				os.Exit(1)
+			}
+		}
 		doTemplates = true
 		doPrompts = true
 		doCommands = true
