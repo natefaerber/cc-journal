@@ -61,6 +61,7 @@ cmd backfill help="Retroactively summarize recent sessions" {
         arg <DAYS>
     }
     flag --dry-run help="Show what would be summarized without writing"
+    flag --force help="Re-summarize sessions even if already journaled"
 }
 cmd today help="Print today's journal entries"
 cmd show help="Print a specific date's journal entries" {

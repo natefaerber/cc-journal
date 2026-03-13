@@ -11,7 +11,7 @@ import (
 )
 
 // runBackfill retroactively summarizes existing Claude Code sessions.
-func runBackfill(days int, dryRun bool) {
+func runBackfill(days int, dryRun bool, force bool) {
 	home, _ := os.UserHomeDir()
 	projectsDir := filepath.Join(home, ".claude", "projects")
 
@@ -77,7 +77,7 @@ func runBackfill(days int, dryRun bool) {
 
 	for _, sf := range sessionFiles {
 		sessionID := strings.TrimSuffix(filepath.Base(sf.path), ".jsonl")
-		if existingIDs[sessionID] || denied[sessionID] {
+		if !force && (existingIDs[sessionID] || denied[sessionID]) {
 			skipped++
 			continue
 		}

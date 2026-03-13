@@ -13,7 +13,7 @@
 - [`cc-journal weekly [FLAGS] [START]`](/weekly.md)
 - [`cc-journal hook`](/hook.md)
 - [`cc-journal summarize [--session <SESSION_ID>] [--force] [SESSION_ID]`](/summarize.md)
-- [`cc-journal backfill [--days <DAYS>] [--dry-run]`](/backfill.md)
+- [`cc-journal backfill [FLAGS]`](/backfill.md)
 - [`cc-journal today`](/today.md)
 - [`cc-journal show <DATE>`](/show.md)
 - [`cc-journal list`](/list.md)

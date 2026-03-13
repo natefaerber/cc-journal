@@ -135,7 +135,8 @@ func main() {
 			}
 		}
 		dryRun := hasFlag(args, "--dry-run")
-		runBackfill(days, dryRun)
+		force := hasFlag(args, "--force")
+		runBackfill(days, dryRun, force)
 
 	case "today":
 		showToday()
@@ -209,7 +210,7 @@ Site Commands:
 Journal Commands:
   hook                          SessionEnd hook (reads JSON from stdin)
   summarize [SESSION_ID]        Summarize a session and write to journal
-  backfill  [--days 30] [--dry-run]  Summarize existing sessions
+  backfill  [--days 30] [--dry-run] [--force]  Summarize existing sessions
   prune     [--dry-run]         Remove failed summary entries
   remove    SESSION_ID          Delete entry + deny from future backfills
 
