@@ -447,9 +447,36 @@
     }
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.key === 'Escape') { closePalette(); closeSessionPanel(); return; }
+
+    // p/n: previous/next navigation (works on daily entries and reports)
+    if (e.key === 'p') {
+      var prev = document.getElementById('prev-day') || document.getElementById('prev-report');
+      if (prev) { prev.click(); return; }
+    }
+    if (e.key === 'n') {
+      var next = document.getElementById('next-day') || document.getElementById('next-report');
+      if (next) { next.click(); return; }
+    }
+
+    // gi: go to dashboard (index)
+    if (e.key === 'g' && !window._gPressed) {
+      window._gPressed = true;
+      window._gTimer = setTimeout(function() {
+        // plain 'g' — scroll to top
+        window.scrollTo({top: 0, behavior: 'smooth'});
+        window._gPressed = false;
+      }, 300);
+      return;
+    }
+    if (e.key === 'i' && window._gPressed) {
+      clearTimeout(window._gTimer);
+      window._gPressed = false;
+      window.location.href = '/';
+      return;
+    }
+
     if (e.key === 'h') { history.back(); }
     else if (e.key === 'l') { history.forward(); }
-    else if (e.key === 'g') { window.scrollTo({top: 0, behavior: 'smooth'}); }
     else if (e.key === 'G') { window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}); }
   });
   </script>
