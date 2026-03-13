@@ -15,19 +15,37 @@ var builtinPrompts = map[string]string{
 	"weekly":  defaultWeeklyTemplate,
 }
 
+// builtinCommands maps Claude Code slash command names to their content.
+var builtinCommands = map[string]string{
+	"summarize": `Summarize the current Claude Code session and write it to the journal.
+
+Run the following command to generate a summary of this session:
+
+` + "```" + `
+cc-journal summarize $ARGUMENTS --force
+` + "```" + `
+
+If no session ID is provided as an argument, it will find the most recent session for the current working directory.
+
+After running, show the user the output. If the command succeeds, let them know the summary was written to their journal.
+`,
+}
+
 func runInit(args []string) {
 	doTemplates := hasFlag(args, "--templates") || hasFlag(args, "--all")
 	doPrompts := hasFlag(args, "--prompts") || hasFlag(args, "--all")
+	doCommands := hasFlag(args, "--commands") || hasFlag(args, "--all")
 	force := hasFlag(args, "--force")
 	toStdout := hasFlag(args, "--stdout")
 
-	if !doTemplates && !doPrompts {
+	if !doTemplates && !doPrompts && !doCommands {
 		doTemplates = true
 		doPrompts = true
+		doCommands = true
 	}
 
 	if toStdout {
-		initStdout(doTemplates, doPrompts)
+		initStdout(doTemplates, doPrompts, doCommands)
 		return
 	}
 
@@ -79,10 +97,24 @@ func runInit(args []string) {
 		fmt.Printf("\nTo use custom templates:\n")
 		fmt.Printf("  cc-journal serve --templates %s\n", templatesDir)
 	}
+
+	if doCommands {
+		home, _ := os.UserHomeDir()
+		commandsDir := filepath.Join(home, ".claude", "commands")
+		if err := os.MkdirAll(commandsDir, 0o755); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to create commands dir: %v\n", err)
+			return
+		}
+		for name, content := range builtinCommands {
+			writeFile(filepath.Join(commandsDir, name+".md"), []byte(content))
+		}
+		fmt.Printf("\nClaude Code commands: %s\n", commandsDir)
+		fmt.Println("  Use /summarize in Claude Code to journal the current session.")
+	}
 }
 
 // initStdout prints templates and/or prompts to stdout, separated by filename headers.
-func initStdout(doTemplates, doPrompts bool) {
+func initStdout(doTemplates, doPrompts, doCommands bool) {
 	if doPrompts {
 		for name, content := range builtinPrompts {
 			fmt.Printf("=== prompt: %s.txt ===\n", name)
@@ -107,6 +139,16 @@ func initStdout(doTemplates, doPrompts bool) {
 			fmt.Printf("=== template: %s ===\n", e.Name())
 			_, _ = os.Stdout.Write(data)
 			if len(data) > 0 && data[len(data)-1] != '\n' {
+				fmt.Println()
+			}
+		}
+	}
+
+	if doCommands {
+		for name, content := range builtinCommands {
+			fmt.Printf("=== command: %s.md ===\n", name)
+			fmt.Print(content)
+			if len(content) > 0 && content[len(content)-1] != '\n' {
 				fmt.Println()
 			}
 		}

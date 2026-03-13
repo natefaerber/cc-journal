@@ -3,7 +3,7 @@
 
 - **Usage**: `cc-journal init [FLAGS]`
 
-Export default templates and prompts for customization
+Export default templates, prompts, and Claude Code commands
 
 ## Flags
 
@@ -15,9 +15,13 @@ Export HTML templates only
 
 Export prompt templates only
 
+### `--commands`
+
+Install Claude Code slash commands (e.g. /summarize)
+
 ### `--all`
 
-Export both templates and prompts
+Export templates, prompts, and commands
 
 ### `--force`
 

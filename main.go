@@ -227,7 +227,7 @@ Report Commands:
   weekly    [START] [--end END] [--copy] [--slack [CHANNEL]]  Print weekly status (default: this week)
 
 Setup:
-  init      [--templates] [--prompts] [--force] [--stdout]  Export defaults for customization
+  init      [--templates] [--prompts] [--commands] [--force] [--stdout]  Export defaults
 
 Other:
   version                       Print version information

@@ -88,10 +88,11 @@ cmd prune help="Remove failed summary entries from journal" {
 cmd remove help="Delete a journal entry and deny future backfills for this session" {
     arg <SESSION_ID> help="Session ID to remove"
 }
-cmd init help="Export default templates and prompts for customization" {
+cmd init help="Export default templates, prompts, and Claude Code commands" {
     flag --templates help="Export HTML templates only"
     flag --prompts help="Export prompt templates only"
-    flag --all help="Export both templates and prompts"
+    flag --commands help="Install Claude Code slash commands (e.g. /summarize)"
+    flag --all help="Export templates, prompts, and commands"
     flag --force help="Overwrite existing files"
     flag --stdout help="Print to stdout instead of writing files"
 }
