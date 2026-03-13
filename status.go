@@ -320,24 +320,24 @@ type ReportGroup struct {
 
 // StandupData is the template data for daily standup reports.
 type StandupData struct {
-	DateLabel      string
-	YesterdayDate  string
+	DateLabel       string
+	YesterdayDate   string
 	YesterdayGroups []ReportGroup
-	TodayGroups    []ReportGroup
-	OpenItems      []string
-	Links          []ExternalLink
+	TodayGroups     []ReportGroup
+	OpenItems       []string
+	Links           []ExternalLink
 }
 
 // WeeklyData is the template data for weekly status reports.
 type WeeklyData struct {
-	WeekLabel     string
-	Groups        []ReportGroup
-	Decisions     []string
-	OpenItems     []string
-	Links         []ExternalLink
-	TotalSessions int
-	TotalProjects int
-	ActiveDays    int
+	WeekLabel      string
+	Groups         []ReportGroup
+	Decisions      []string
+	OpenItems      []string
+	Links          []ExternalLink
+	TotalSessions  int
+	TotalProjects  int
+	ActiveDays     int
 	TotalTokensIn  int64
 	TotalTokensOut int64
 }

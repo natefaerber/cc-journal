@@ -17,4 +17,25 @@ hooks {
       }
     }
   }
+  ["check"] {
+    steps {
+      ["go-build"] {
+        glob = List("**/*.go")
+        check = "go build -v ./..."
+      }
+      ["go-test"] {
+        glob = List("**/*.go")
+        check = "go test -v -race ./..."
+      }
+      ["go-vet"] {
+        glob = List("**/*.go")
+        check = "go vet ./..."
+      }
+      ["go-fmt"] = Builtins.go_fmt
+      ["golangci-lint"] {
+        glob = List("**/*.go")
+        check = "mise x -- golangci-lint run ./..."
+      }
+    }
+  }
 }

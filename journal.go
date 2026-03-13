@@ -30,17 +30,17 @@ type ProjectCount struct {
 }
 
 type Stats struct {
-	TotalSessions        int
-	TotalDays            int
-	TotalProjects        int
-	ThisWeek             int
-	Streak               int
-	MostActive           string
-	WeekStartLabel       string
-	SessionInputTokens   int64 // input + cache_create + cache_read
-	SessionOutputTokens  int64
-	SummaryInputTokens   int64
-	SummaryOutputTokens  int64
+	TotalSessions       int
+	TotalDays           int
+	TotalProjects       int
+	ThisWeek            int
+	Streak              int
+	MostActive          string
+	WeekStartLabel      string
+	SessionInputTokens  int64 // input + cache_create + cache_read
+	SessionOutputTokens int64
+	SummaryInputTokens  int64
+	SummaryOutputTokens int64
 }
 
 type Bar struct {
@@ -153,17 +153,17 @@ func parseJournalFiles() JournalData {
 				}
 			}
 			// Parse token usage
-		var tokens TokenUsage
-		if m := tokensRe.FindStringSubmatch(section); m != nil {
-			tokens.InputTokens, _ = strconv.ParseInt(m[1], 10, 64)
-			tokens.OutputTokens, _ = strconv.ParseInt(m[2], 10, 64)
-			tokens.CacheCreationInputTokens, _ = strconv.ParseInt(m[3], 10, 64)
-			tokens.CacheReadInputTokens, _ = strconv.ParseInt(m[4], 10, 64)
-			tokens.SummaryInputTokens, _ = strconv.ParseInt(m[5], 10, 64)
-			tokens.SummaryOutputTokens, _ = strconv.ParseInt(m[6], 10, 64)
-		}
+			var tokens TokenUsage
+			if m := tokensRe.FindStringSubmatch(section); m != nil {
+				tokens.InputTokens, _ = strconv.ParseInt(m[1], 10, 64)
+				tokens.OutputTokens, _ = strconv.ParseInt(m[2], 10, 64)
+				tokens.CacheCreationInputTokens, _ = strconv.ParseInt(m[3], 10, 64)
+				tokens.CacheReadInputTokens, _ = strconv.ParseInt(m[4], 10, 64)
+				tokens.SummaryInputTokens, _ = strconv.ParseInt(m[5], 10, 64)
+				tokens.SummaryOutputTokens, _ = strconv.ParseInt(m[6], 10, 64)
+			}
 
-		// Also extract issue keys from summary text
+			// Also extract issue keys from summary text
 			if issueLinks := extractIssueKeysFromText(summary); len(issueLinks) > 0 {
 				seen := make(map[string]bool)
 				for _, l := range links {
