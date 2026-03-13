@@ -632,9 +632,13 @@ func summarizeSession(sessionID string, force bool) {
 	}
 	fmt.Printf("Session: %s\n", sid)
 
-	if !force && isSessionJournaled(sid) {
-		fmt.Println("Session already has a summary in the journal. Use --force to re-summarize.")
-		return
+	if isSessionJournaled(sid) {
+		if !force {
+			fmt.Println("Session already has a summary in the journal. Use --force to re-summarize.")
+			return
+		}
+		fmt.Println("Replacing existing journal entry...")
+		removeFromJournal(sid)
 	}
 
 	fmt.Println("Parsing transcript...")

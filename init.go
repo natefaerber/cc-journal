@@ -24,7 +24,7 @@ var builtinCommands = map[string]string{
 Run the following command to generate a summary of this session:
 
 ` + "```" + `
-cc-journal summarize $ARGUMENTS --force
+cc-journal summarize $ARGUMENTS
 ` + "```" + `
 
 If no session ID is provided as an argument, it will find the most recent session for the current working directory.

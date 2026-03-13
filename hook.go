@@ -32,12 +32,13 @@ func runHook() {
 		os.Exit(0)
 	}
 
-	// Skip if denied or already journaled
+	// Skip if denied
 	if isDenied(input.SessionID) {
 		os.Exit(0)
 	}
+	// Replace existing entry (e.g. mid-session /summarize snapshot)
 	if isSessionJournaled(input.SessionID) {
-		os.Exit(0)
+		removeFromJournal(input.SessionID)
 	}
 
 	meta, err := parseTranscript(input.TranscriptPath)

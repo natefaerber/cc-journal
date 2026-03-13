@@ -77,7 +77,12 @@ func runBackfill(days int, dryRun bool, force bool) {
 
 	for _, sf := range sessionFiles {
 		sessionID := strings.TrimSuffix(filepath.Base(sf.path), ".jsonl")
-		alreadyDone := existingIDs[sessionID] || denied[sessionID]
+		// Always skip denied sessions, even with --force
+		if denied[sessionID] {
+			skipped++
+			continue
+		}
+		alreadyDone := existingIDs[sessionID]
 
 		if !force && alreadyDone && !dryRun {
 			skipped++
@@ -91,6 +96,9 @@ func runBackfill(days int, dryRun bool, force bool) {
 		}
 		if len(meta.Messages) == 0 {
 			fmt.Printf("  %s: no messages, skipping\n", sessionID[:8])
+			continue
+		}
+		if meta.CWD != "" && isExcluded(meta.CWD) {
 			continue
 		}
 
@@ -133,6 +141,11 @@ func runBackfill(days int, dryRun bool, force bool) {
 				skipped++
 			}
 			continue
+		}
+
+		// Replace existing entry if force re-summarizing
+		if force && alreadyDone {
+			removeFromJournal(sessionID)
 		}
 
 		// Extract external links
