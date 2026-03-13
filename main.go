@@ -24,12 +24,13 @@ func main() {
 		Name:    "cc-journal",
 		Usage:   "Claude Code developer journal",
 		Version: fmt.Sprintf("%s (%s) built %s", version, commit, buildTime),
+		Suggest: true,
 		Commands: []*cli.Command{
 			// Site commands
 			{
 				Name:     "serve",
 				Usage:    "Start dev server with live reload. Send SIGHUP to reload config.",
-				Category: "site",
+				Category: "Site",
 				Flags: []cli.Flag{
 					&cli.IntFlag{Name: "port", Value: 8000, Usage: "port to listen on"},
 					&cli.StringFlag{Name: "templates", Usage: "custom templates directory"},
@@ -42,7 +43,7 @@ func main() {
 			{
 				Name:     "build",
 				Usage:    "Generate static HTML site",
-				Category: "site",
+				Category: "Site",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "out", Value: "public", Usage: "output directory"},
 					&cli.StringFlag{Name: "templates", Usage: "custom templates directory"},
@@ -57,7 +58,7 @@ func main() {
 			{
 				Name:     "hook",
 				Usage:    "SessionEnd hook (reads JSON from stdin)",
-				Category: "journal",
+				Category: "Journal",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					runHook()
 					return nil
@@ -66,7 +67,7 @@ func main() {
 			{
 				Name:      "summarize",
 				Usage:     "Summarize a session and write to journal",
-				Category:  "journal",
+				Category:  "Journal",
 				ArgsUsage: "[SESSION_ID]",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "session", Usage: "session ID to summarize"},
@@ -84,7 +85,7 @@ func main() {
 			{
 				Name:     "backfill",
 				Usage:    "Retroactively summarize recent sessions",
-				Category: "journal",
+				Category: "Journal",
 				Flags: []cli.Flag{
 					&cli.IntFlag{Name: "days", Value: 30, Usage: "number of days to look back"},
 					&cli.BoolFlag{Name: "dry-run", Usage: "show what would be summarized"},
@@ -98,7 +99,7 @@ func main() {
 			{
 				Name:     "prune",
 				Usage:    "Remove failed summary entries",
-				Category: "journal",
+				Category: "Journal",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "dry-run", Usage: "show what would be pruned"},
 				},
@@ -110,7 +111,7 @@ func main() {
 			{
 				Name:      "remove",
 				Usage:     "Delete entry and deny from future backfills",
-				Category:  "journal",
+				Category:  "Journal",
 				ArgsUsage: "<SESSION_ID>",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					sessionID := ""
@@ -126,7 +127,7 @@ func main() {
 			{
 				Name:     "today",
 				Usage:    "Print today's journal entries",
-				Category: "browse",
+				Category: "Browse",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					showToday()
 					return nil
@@ -135,7 +136,7 @@ func main() {
 			{
 				Name:      "show",
 				Usage:     "Print a specific date's journal entries",
-				Category:  "browse",
+				Category:  "Browse",
 				ArgsUsage: "<DATE>",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					if cmd.NArg() == 0 {
@@ -148,7 +149,7 @@ func main() {
 			{
 				Name:     "list",
 				Usage:    "List all journal files",
-				Category: "browse",
+				Category: "Browse",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					listEntries()
 					return nil
@@ -157,7 +158,7 @@ func main() {
 			{
 				Name:      "search",
 				Usage:     "Search journal entries by text",
-				Category:  "browse",
+				Category:  "Browse",
 				ArgsUsage: "<QUERY>...",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "project", Aliases: []string{"p"}, Usage: "filter by project name"},
@@ -171,7 +172,7 @@ func main() {
 			{
 				Name:      "week",
 				Usage:     "Print this week's entries or generate rollup",
-				Category:  "browse",
+				Category:  "Browse",
 				ArgsUsage: "[DATE]",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "date", Usage: "week containing this date"},
@@ -193,7 +194,7 @@ func main() {
 			{
 				Name:      "rollup",
 				Usage:     "Generate AI-powered weekly rollup",
-				Category:  "browse",
+				Category:  "Browse",
 				ArgsUsage: "[DATE]",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					date := ""
@@ -209,7 +210,7 @@ func main() {
 			{
 				Name:      "standup",
 				Usage:     "Print daily standup report",
-				Category:  "report",
+				Category:  "Report",
 				ArgsUsage: "[DATE]",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "date", Usage: "date (YYYY-MM-DD, default: today)"},
@@ -237,7 +238,7 @@ func main() {
 			{
 				Name:     "weekly",
 				Usage:    "Print weekly status report",
-				Category: "report",
+				Category: "Report",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "start", Usage: "start date (YYYY-MM-DD)"},
 					&cli.StringFlag{Name: "end", Usage: "end date (YYYY-MM-DD)"},
@@ -276,7 +277,7 @@ func main() {
 			{
 				Name:     "init",
 				Usage:    "Export default templates, prompts, and Claude Code commands",
-				Category: "setup",
+				Category: "Setup",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "templates", Usage: "export HTML templates only"},
 					&cli.BoolFlag{Name: "prompts", Usage: "export prompt templates only"},
