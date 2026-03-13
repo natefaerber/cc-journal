@@ -188,6 +188,17 @@ window.addEventListener('DOMContentLoaded', function() {
     h2.parentNode.insertBefore(wrapper, h2);
     elements.forEach(function(el) { wrapper.appendChild(el); });
 
+    // Click to focus session for j/k navigation
+    wrapper.addEventListener('click', function(e) {
+      // Don't interfere with links, buttons, or code clicks
+      if (e.target.closest('a, button, code')) return;
+      var article = document.querySelector('.journal-entry');
+      document.querySelectorAll('.session-section').forEach(function(s) { s.classList.remove('session-focused'); });
+      article.classList.add('has-focus');
+      wrapper.classList.add('session-focused');
+      history.replaceState(null, '', '#' + sessionId);
+    });
+
     // Replace <details> with flat metadata bar
     var metaBar = document.createElement('div');
     metaBar.className = 'session-meta';
