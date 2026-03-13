@@ -87,7 +87,7 @@ func main() {
 				Usage:    "Retroactively summarize recent sessions",
 				Category: "Journal",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "since", Value: "30d", Usage: "how far back to look (e.g. 1d, 2h, 30m)"},
+					&cli.StringFlag{Name: "since", Value: "3d", Usage: "how far back to look (e.g. 1d, 2h, 30m)"},
 					&cli.BoolFlag{Name: "rolling", Usage: "use rolling duration instead of aligned (days=midnight, hours=top-of-hour)"},
 					&cli.BoolFlag{Name: "dry-run", Usage: "show what would be summarized"},
 					&cli.BoolFlag{Name: "force", Usage: "re-summarize already-journaled sessions"},

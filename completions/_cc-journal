@@ -61,7 +61,7 @@ cmd summarize help="Summarize a session and write to journal" {
     arg "[SESSION_ID]" help="Session ID to summarize" required=#false
 }
 cmd backfill help="Retroactively summarize recent sessions" {
-    flag --since help="How far back to look (e.g. 1d, 2h, 30m)" default="30d" {
+    flag --since help="How far back to look (e.g. 1d, 2h, 30m)" default="3d" {
         arg <DURATION>
     }
     flag --rolling help="Use rolling duration instead of aligned (days=midnight, hours=top-of-hour)"

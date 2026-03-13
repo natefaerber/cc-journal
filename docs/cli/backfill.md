@@ -11,7 +11,7 @@ Retroactively summarize recent sessions
 
 How far back to look (e.g. 1d, 2h, 30m)
 
-**Default:** `30d`
+**Default:** `3d`
 
 ### `--rolling`
 
