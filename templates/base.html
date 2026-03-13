@@ -53,6 +53,70 @@
     Built with Go
   </footer>
 
+  <!-- Keyboard Shortcuts Help -->
+  <div id="shortcuts-overlay" class="fixed inset-0 z-[100] bg-foreground/40 backdrop-blur-sm hidden" onclick="closeShortcuts()">
+    <div class="max-w-md mx-auto mt-[12vh]" onclick="event.stopPropagation()">
+      <div class="bg-card rounded-lg shadow-2xl border border-border overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h3 class="text-sm font-sans font-semibold text-foreground">Keyboard Shortcuts</h3>
+          <button onclick="closeShortcuts()" class="text-muted-foreground hover:text-foreground transition-colors">
+            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </button>
+        </div>
+        <div class="px-4 py-3 space-y-3 text-sm font-sans max-h-[65vh] overflow-y-auto">
+          <div>
+            <div class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-semibold mb-1.5">Navigation</div>
+            <div class="space-y-1">
+              <div class="flex justify-between"><span class="text-foreground/80">Previous page</span><kbd class="sc-key">p</kbd></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Next page</span><kbd class="sc-key">n</kbd></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Go to dashboard</span><span><kbd class="sc-key">g</kbd> <kbd class="sc-key">i</kbd></span></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Back</span><kbd class="sc-key">h</kbd></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Forward</span><kbd class="sc-key">l</kbd></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Scroll to top</span><kbd class="sc-key">g</kbd></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Scroll to bottom</span><kbd class="sc-key">G</kbd></div>
+            </div>
+          </div>
+          <div>
+            <div class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-semibold mb-1.5">Daily View</div>
+            <div class="space-y-1">
+              <div class="flex justify-between"><span class="text-foreground/80">Next session</span><kbd class="sc-key">j</kbd></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Previous session</span><kbd class="sc-key">k</kbd></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Session info panel</span><kbd class="sc-key">i</kbd></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Copy permalink</span><kbd class="sc-key">y</kbd></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Copy resume command</span><kbd class="sc-key">r</kbd></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Delete entry</span><kbd class="sc-key">x</kbd></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Previous / next day</span><span><kbd class="sc-key">[</kbd> <kbd class="sc-key">]</kbd></span></div>
+            </div>
+          </div>
+          <div>
+            <div class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-semibold mb-1.5">General</div>
+            <div class="space-y-1">
+              <div class="flex justify-between"><span class="text-foreground/80">Command palette</span><span><kbd class="sc-key">&#8984;K</kbd></span></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Show shortcuts</span><kbd class="sc-key">?</kbd></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Close / dismiss</span><kbd class="sc-key">esc</kbd></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <style>
+    .sc-key {
+      display: inline-block;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.65rem;
+      font-weight: 500;
+      background: var(--color-muted);
+      color: var(--color-muted-foreground);
+      border: 1px solid var(--color-border);
+      border-radius: 0.25rem;
+      padding: 0.1rem 0.4rem;
+      min-width: 1.2rem;
+      text-align: center;
+      line-height: 1.4;
+    }
+  </style>
+
   <!-- Command Palette -->
   <div id="palette-overlay" class="fixed inset-0 z-[100] bg-foreground/40 backdrop-blur-sm hidden" onclick="closePalette()">
     <div class="max-w-lg mx-auto mt-[15vh]" onclick="event.stopPropagation()">
@@ -187,6 +251,10 @@
       }, 2000);
     });
   }
+
+  // Shortcuts help
+  function openShortcuts() { document.getElementById('shortcuts-overlay').classList.remove('hidden'); }
+  function closeShortcuts() { document.getElementById('shortcuts-overlay').classList.add('hidden'); }
 
   // Session info panel
   function fmtTokens(n) {
@@ -446,7 +514,8 @@
       return;
     }
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key === 'Escape') { closePalette(); closeSessionPanel(); return; }
+    if (e.key === 'Escape') { closePalette(); closeSessionPanel(); closeShortcuts(); return; }
+    if (e.key === '?') { openShortcuts(); return; }
 
     // p/n: previous/next navigation (works on daily entries and reports)
     if (e.key === 'p') {
