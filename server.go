@@ -326,6 +326,44 @@ func serve(port int, templatesDir string) {
 		json.NewEncoder(w).Encode(items)
 	})
 
+	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query().Get("q")
+		if q == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("[]"))
+			return
+		}
+		limit := 30
+		if v := r.URL.Query().Get("limit"); v != "" {
+			fmt.Sscanf(v, "%d", &limit)
+			if limit > 100 {
+				limit = 100
+			}
+		}
+
+		data := parseJournalFiles()
+		results := searchEntries(data.Entries, q, limit)
+
+		type SearchItem struct {
+			Type  string `json:"type"`
+			Title string `json:"title"`
+			Desc  string `json:"desc"`
+			URL   string `json:"url"`
+		}
+		items := make([]SearchItem, 0, len(results))
+		for _, r := range results {
+			items = append(items, SearchItem{
+				Type:  "search",
+				Title: r.Entry.Project + " (" + r.Entry.Branch + ")",
+				Desc:  r.Entry.Date + " " + r.Entry.TimeRange + " — " + r.Snippet,
+				URL:   "/daily/" + r.Entry.Date + "#" + r.Entry.SessionID,
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(items)
+	})
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/")
 		data := parseJournalFiles()

@@ -87,6 +87,15 @@ cmd init help="Export default templates and prompts for customization" {
     flag --force help="Overwrite existing files"
     flag --stdout help="Print to stdout instead of writing files"
 }
+cmd search help="Search journal entries by text" {
+    flag --project help="Filter results to a specific project" {
+        arg <PROJECT>
+    }
+    flag --limit help="Maximum number of results" default="20" {
+        arg <N>
+    }
+    arg <QUERY>… help="Search query (matches summary, project, branch)" var=#true
+}
 cmd version help="Print version information"
 '
 set -l tmpdir (if set -q TMPDIR; echo $TMPDIR; else; echo /tmp; end)

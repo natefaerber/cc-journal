@@ -93,8 +93,8 @@
   var paletteData = null;
   var paletteFiltered = [];
   var paletteIdx = -1;
-  var typeLabels = {page:'Pages', project:'Projects', date:'Dates', session:'Sessions'};
-  var typeIcons = {page:'\u2302', project:'\u25CB', date:'\u25A1', session:'\u25B8'};
+  var typeLabels = {page:'Pages', project:'Projects', date:'Dates', session:'Sessions', search:'Search Results'};
+  var typeIcons = {page:'\u2302', project:'\u25CB', date:'\u25A1', session:'\u25B8', search:'\u2315'};
 
   function openPalette() {
     var el = document.getElementById('palette-overlay');
@@ -173,8 +173,31 @@
     return d.innerHTML;
   }
 
+  var searchTimeout = null;
   document.getElementById('palette-input').addEventListener('input', function(e) {
-    filterPalette(e.target.value);
+    var q = e.target.value;
+    filterPalette(q);
+    clearTimeout(searchTimeout);
+    if (q.length >= 2 && paletteFiltered.length < 3) {
+      searchTimeout = setTimeout(function() {
+        fetch('/api/search?q=' + encodeURIComponent(q))
+          .then(function(r) { return r.json(); })
+          .then(function(results) {
+            if (results && results.length > 0) {
+              // Deduplicate against existing results by URL
+              var existingUrls = {};
+              paletteFiltered.forEach(function(item) { existingUrls[item.url] = true; });
+              var newResults = results.filter(function(item) { return !existingUrls[item.url]; });
+              if (newResults.length > 0) {
+                paletteFiltered = paletteFiltered.concat(newResults);
+                if (paletteIdx < 0) paletteIdx = 0;
+                renderPalette();
+              }
+            }
+          })
+          .catch(function() {}); // silently fail for static builds
+      }, 300);
+    }
   });
 
   document.getElementById('palette-input').addEventListener('keydown', function(e) {

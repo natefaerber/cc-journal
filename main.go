@@ -186,6 +186,9 @@ func main() {
 	case "init":
 		runInit(args)
 
+	case "search":
+		runSearch(args)
+
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", cmd)
 		printUsage()
@@ -214,6 +217,7 @@ Browse Commands:
   today                         Print today's journal entries
   show DATE                     Print a specific date's entries
   list                          List all journal files
+  search QUERY [--project P] [--limit N]  Search entries by text
   week [DATE] [--rollup]        Print this week's entries (or generate rollup)
   rollup [DATE]                 Generate AI-powered weekly rollup
 

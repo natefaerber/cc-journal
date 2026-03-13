@@ -32,7 +32,7 @@
 
 ## Dashboard & UI
 
-- [ ] **Search** — Full-text search across all journal entries
+- [x] **Search** — Full-text search across all journal entries via CLI (`cc-journal search`), `/api/search` endpoint, and command palette integration with debounced API fallback
 - [ ] **Filtering & facets** — Filter dashboard by project, date range, tags
 - [ ] **Tags/labels** — Tag sessions (e.g., bugfix, feature, refactor) for better categorization
 - [ ] **Session timeline view** — Visual timeline of sessions within a day
@@ -72,9 +72,9 @@
 
 **Near-term focus:**
 
-1. Search & filtering
-2. Session info panel
-3. MCP server or REST API
+1. Session info panel
+2. MCP server or REST API
+3. Filtering & facets
 
 **Medium-term:**
 4. Summary regeneration

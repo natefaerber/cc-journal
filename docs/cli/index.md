@@ -22,4 +22,5 @@
 - [`cc-journal prune [--dry-run]`](/prune.md)
 - [`cc-journal remove <SESSION_ID>`](/remove.md)
 - [`cc-journal init [FLAGS]`](/init.md)
+- [`cc-journal search [--project <PROJECT>] [--limit <N>] <QUERY>…`](/search.md)
 - [`cc-journal version`](/version.md)

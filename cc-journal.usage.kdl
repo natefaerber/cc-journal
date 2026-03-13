@@ -93,4 +93,14 @@ cmd init help="Export default templates and prompts for customization" {
     flag "--stdout" help="Print to stdout instead of writing files"
 }
 
+cmd search help="Search journal entries by text" {
+    arg "<QUERY>..." help="Search query (matches summary, project, branch)"
+    flag "--project" help="Filter results to a specific project" {
+        arg <PROJECT>
+    }
+    flag "--limit" help="Maximum number of results" default="20" {
+        arg <N>
+    }
+}
+
 cmd version help="Print version information"
