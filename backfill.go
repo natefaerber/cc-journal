@@ -77,7 +77,9 @@ func runBackfill(days int, dryRun bool, force bool) {
 
 	for _, sf := range sessionFiles {
 		sessionID := strings.TrimSuffix(filepath.Base(sf.path), ".jsonl")
-		if !force && (existingIDs[sessionID] || denied[sessionID]) {
+		alreadyDone := existingIDs[sessionID] || denied[sessionID]
+
+		if !force && alreadyDone && !dryRun {
 			skipped++
 			continue
 		}
@@ -92,21 +94,44 @@ func runBackfill(days int, dryRun bool, force bool) {
 			continue
 		}
 
-		// Get first user message for display
+		status := "new"
+		if alreadyDone {
+			if denied[sessionID] {
+				status = "denied"
+			} else {
+				status = "journaled"
+			}
+		}
+
+		// Calculate how much room is left for the message preview
+		// Format: "  [status] sessionID  project (branch)  msg"
+		prefixLen := 2 + 1 + len(status) + 2 + len(sessionID) + 2 + len(meta.Project) + 2 + len(meta.BranchDisplay()) + 4
+		maxMsg := 100 - prefixLen
+		if maxMsg < 20 {
+			maxMsg = 20
+		}
+
+		// Get first user message for display (first line, truncated)
 		firstUserMsg := ""
 		for _, m := range meta.Messages {
 			if m.Role == "user" {
 				firstUserMsg = m.Text
-				if len(firstUserMsg) > 100 {
-					firstUserMsg = firstUserMsg[:100]
+				if nl := strings.IndexByte(firstUserMsg, '\n'); nl >= 0 {
+					firstUserMsg = firstUserMsg[:nl]
+				}
+				if len(firstUserMsg) > maxMsg {
+					firstUserMsg = firstUserMsg[:maxMsg-3] + "..."
 				}
 				break
 			}
 		}
 
-		fmt.Printf("  %s  %s (%s)  %s...\n", sessionID[:8], meta.Project, meta.BranchDisplay(), firstUserMsg)
+		fmt.Printf("  [%s] %s  %s (%s)  %s\n", status, sessionID, meta.Project, meta.BranchDisplay(), firstUserMsg)
 
-		if dryRun {
+		if dryRun || (!force && alreadyDone) {
+			if alreadyDone {
+				skipped++
+			}
 			continue
 		}
 
@@ -207,7 +232,15 @@ func runBackfill(days int, dryRun bool, force bool) {
 		fmt.Printf("    Summarized → %s.md\n", journalDate)
 	}
 
-	fmt.Printf("\nDone. Summarized %d sessions, skipped %d already-journaled.\n", summarized, skipped)
+	if dryRun {
+		newCount := len(sessionFiles) - skipped
+		fmt.Printf("\nDry run: %d new, %d already journaled/denied.\n", newCount, skipped)
+		if skipped > 0 {
+			fmt.Println("To re-summarize a session: cc-journal summarize SESSION_ID --force")
+		}
+	} else {
+		fmt.Printf("\nDone. Summarized %d sessions, skipped %d already-journaled.\n", summarized, skipped)
+	}
 }
 
 // collectExistingIDs scans all journal files for session UUIDs.
