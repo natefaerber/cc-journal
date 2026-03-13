@@ -9,10 +9,12 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/yuin/goldmark"
@@ -506,8 +508,18 @@ func serve(port int, templatesDir string) {
 		}
 	})
 
+	// Reload config on SIGHUP (templates reload from disk on each request automatically)
+	sighup := make(chan os.Signal, 1)
+	signal.Notify(sighup, syscall.SIGHUP)
+	go func() {
+		for range sighup {
+			cfg = loadConfig()
+			fmt.Println("Config reloaded (SIGHUP)")
+		}
+	}()
+
 	fmt.Printf("Serving at http://localhost:%d\n", port)
-	fmt.Println("Press Ctrl+C to stop")
+	fmt.Println("Press Ctrl+C to stop. Send SIGHUP to reload config.")
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
 		fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 		os.Exit(1)
