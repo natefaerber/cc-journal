@@ -40,12 +40,13 @@
 
 | Type | Purpose |
 |------|---------|
-| `Entry` | Parsed journal entry — date, project, branch, time range, summary, links |
-| `sessionMeta` | Parsed JSONL transcript — messages, branches, CWD, project, times, links |
+| `TokenUsage` | Token counts — input, output, cache create, cache read, summary in/out |
+| `Entry` | Parsed journal entry — date, project, branch, time range, summary, links, tokens |
+| `sessionMeta` | Parsed JSONL transcript — messages, branches, CWD, project, times, links, tokens |
 | `JournalData` | All entries + daily files + project counts |
 | `DashboardData` | Stats, heatmap, activity bars, recent entries |
 | `StandupData` / `WeeklyData` | Pre-computed report data for templates |
-| `ReportGroup` | Project group with branches, duration, session count, done bullets |
+| `ReportGroup` | Project group with branches, duration, session count, done bullets, tokens in/out |
 | `SummarySections` | Extracted ### Done / Decisions / Open from AI summaries |
 | `ExternalLink` | Classified URL — service, label, URL |
 | `Config` | Runtime configuration — journal dir, model, API key, Slack, links |
@@ -55,7 +56,7 @@
 | Integration | Purpose | Mechanism |
 |-------------|---------|-----------|
 | **Anthropic API** | Session summarization, rollup generation | HTTP POST to `/v1/messages` |
-| **Claude Code** | Source transcripts | Reads `~/.claude/projects/` JSONL files |
+| **Claude Code** | Source transcripts + token usage | Reads `~/.claude/projects/` JSONL files, extracts usage from assistant messages |
 | **Slack** | Report delivery | Configurable command exec |
 | **Clipboard** | Report copying | pbcopy (macOS) / xclip / xsel (Linux) |
 | **GitHub/Linear/Jira/Confluence** | Link extraction | URL pattern matching from transcripts |

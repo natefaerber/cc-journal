@@ -121,6 +121,8 @@ cc-journal serve [--port 8000] [--templates DIR]   # Dev server with live data
 cc-journal build [--out public] [--templates DIR]   # Static HTML generation
 ```
 
+Send `kill -HUP` to the serve process to reload `config.yaml` without restarting. Templates reload from disk on each request automatically.
+
 Routes:
 
 | Route | Description |
@@ -217,8 +219,11 @@ Each `~/claude-journal/YYYY-MM-DD.md` file:
 <summary>Session ID</summary>
 <code>abc123-...</code>
 <code>/path/to/project</code>
+<code>tokens:in=161,out=20308,cache_create=251602,cache_read=7955592,summary_in=1500,summary_out=512</code>
 </details>
 ```
+
+Token usage (input, output, cache create, cache read) is parsed from Claude Code JSONL transcripts. Summarizer API tokens are tracked separately. Old entries without token data display as zero.
 
 Weekly rollups are saved as `~/claude-journal/YYYY-WXX-rollup.md`.
 
@@ -241,6 +246,10 @@ model: claude-sonnet-4-20250514
 
 # API key (prefer fnox or CC_JOURNAL_API_KEY env var instead).
 # api_key: sk-ant-...
+
+# First day of the week for reports and dashboard.
+# Default: monday
+week_start: monday
 
 # Directories to exclude from journal summarization.
 exclude:
@@ -311,7 +320,7 @@ cc-journal init --prompts
 | `summary.txt` | Session summarization (Anthropic API) | `{{.Project}}`, `{{.Branch}}`, `{{.Transcript}}` |
 | `rollup.txt` | Weekly rollup generation (Anthropic API) | `{{.Week}}`, `{{.Content}}` |
 | `standup.txt` | Daily standup report format (Go text/template) | `.DateLabel`, `.YesterdayGroups`, `.TodayGroups`, `.OpenItems`, `.Links` |
-| `weekly.txt` | Weekly status report format (Go text/template) | `.WeekLabel`, `.Groups`, `.Decisions`, `.OpenItems`, `.Links`, `.TotalSessions`, `.TotalProjects`, `.ActiveDays` |
+| `weekly.txt` | Weekly status report format (Go text/template) | `.WeekLabel`, `.Groups`, `.Decisions`, `.OpenItems`, `.Links`, `.TotalSessions`, `.TotalProjects`, `.ActiveDays`, `.TotalTokensIn`, `.TotalTokensOut` |
 
 Report templates (`standup.txt`, `weekly.txt`) use Go's `text/template` syntax with full access to loops, conditionals, and the pre-computed data structs.
 

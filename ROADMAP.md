@@ -53,6 +53,7 @@
 
 - [x] **Mise build tasks** — `mise run build`, `check`, `dev`, `dev:revert`, `serve`, `serve:stop`, `clean`
 - [x] **Usage CLI spec** — Shell completions (bash/zsh/fish) and markdown docs generated from `cc-journal.usage.kdl`
+- [x] **SIGHUP config reload** — `kill -HUP` reloads config.yaml while serve is running; templates reload from disk per-request automatically
 - [ ] **`cc-journal watch`** — Live-reload dashboard during development
 - [ ] **Plugin system** — Hooks for custom post-processing (e.g., auto-post to blog, sync to Notion)
 - [ ] **Export formats** — Export journal to CSV, JSON, or static site (beyond current static HTML)
@@ -71,9 +72,9 @@
 
 **Near-term focus:**
 
-1. Token tracking
-2. MCP server or REST API
-3. Search & filtering
+1. Search & filtering
+2. Session info panel
+3. MCP server or REST API
 
 **Medium-term:**
 4. Summary regeneration
