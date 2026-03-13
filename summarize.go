@@ -200,7 +200,7 @@ func parseTranscript(path string) (*sessionMeta, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	meta := &sessionMeta{
 		SessionID: strings.TrimSuffix(filepath.Base(path), ".jsonl"),
@@ -530,7 +530,9 @@ func callAnthropicAPIRaw(apiKey, prompt string, maxTokens int) (string, error) {
 // appendToJournal writes a session summary to the journal file.
 func appendToJournal(meta *sessionMeta, summary string) error {
 	dir := journalDir()
-	os.MkdirAll(dir, 0o755)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("creating journal dir: %w", err)
+	}
 
 	today := time.Now().Format("2006-01-02")
 	journalFile := filepath.Join(dir, today+".md")
@@ -547,7 +549,9 @@ func appendToJournal(meta *sessionMeta, summary string) error {
 
 	// Create file with header if new
 	if _, err := os.Stat(journalFile); os.IsNotExist(err) {
-		os.WriteFile(journalFile, []byte(fmt.Sprintf("# Claude Code Journal — %s\n\n", today)), 0o644)
+		if err := os.WriteFile(journalFile, []byte(fmt.Sprintf("# Claude Code Journal — %s\n\n", today)), 0o644); err != nil {
+			return fmt.Errorf("creating journal file: %w", err)
+		}
 	}
 
 	branch := meta.BranchDisplay()
@@ -584,7 +588,7 @@ func appendToJournal(meta *sessionMeta, summary string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	_, err = f.WriteString(entry)
 	return err
 }

@@ -36,7 +36,7 @@ var funcMap = template.FuncMap{
 		}
 		return fmt.Sprintf("%d", n)
 	},
-	"sessionTokens":    func(t TokenUsage) int64 { return t.SessionTokens() },
+	"sessionTokens": func(t TokenUsage) int64 { return t.SessionTokens() },
 	"sessionInputTokens": func(t TokenUsage) int64 {
 		return t.InputTokens + t.CacheCreationInputTokens + t.CacheReadInputTokens
 	},
@@ -49,36 +49,36 @@ var funcMap = template.FuncMap{
 	},
 	"sessionJSON": func(e Entry) template.JS {
 		type sj struct {
-			SessionID string `json:"id"`
-			Project   string `json:"project"`
-			Branch    string `json:"branch"`
-			Date      string `json:"date"`
-			TimeRange string `json:"time"`
-			Cwd       string `json:"cwd"`
-			Summary   string `json:"summary"`
-			In        int64  `json:"in"`
-			Out       int64  `json:"out"`
-			CacheCreate int64 `json:"cache_create"`
-			CacheRead   int64 `json:"cache_read"`
-			SummaryIn   int64 `json:"summary_in"`
-			SummaryOut  int64 `json:"summary_out"`
-			Links     []ExternalLink `json:"links,omitempty"`
+			SessionID   string         `json:"id"`
+			Project     string         `json:"project"`
+			Branch      string         `json:"branch"`
+			Date        string         `json:"date"`
+			TimeRange   string         `json:"time"`
+			Cwd         string         `json:"cwd"`
+			Summary     string         `json:"summary"`
+			In          int64          `json:"in"`
+			Out         int64          `json:"out"`
+			CacheCreate int64          `json:"cache_create"`
+			CacheRead   int64          `json:"cache_read"`
+			SummaryIn   int64          `json:"summary_in"`
+			SummaryOut  int64          `json:"summary_out"`
+			Links       []ExternalLink `json:"links,omitempty"`
 		}
 		d := sj{
-			SessionID: e.SessionID,
-			Project:   e.Project,
-			Branch:    e.Branch,
-			Date:      e.Date,
-			TimeRange: e.TimeRange,
-			Cwd:       e.Cwd,
-			Summary:   e.SummaryPreview(),
-			In:        e.Tokens.InputTokens,
-			Out:       e.Tokens.OutputTokens,
+			SessionID:   e.SessionID,
+			Project:     e.Project,
+			Branch:      e.Branch,
+			Date:        e.Date,
+			TimeRange:   e.TimeRange,
+			Cwd:         e.Cwd,
+			Summary:     e.SummaryPreview(),
+			In:          e.Tokens.InputTokens,
+			Out:         e.Tokens.OutputTokens,
 			CacheCreate: e.Tokens.CacheCreationInputTokens,
 			CacheRead:   e.Tokens.CacheReadInputTokens,
 			SummaryIn:   e.Tokens.SummaryInputTokens,
 			SummaryOut:  e.Tokens.SummaryOutputTokens,
-			Links:     e.Links,
+			Links:       e.Links,
 		}
 		b, _ := json.Marshal(d)
 		return template.JS(b)
@@ -179,17 +179,17 @@ type DailyInfo struct {
 }
 
 type PageData struct {
-	Title       string
-	Content     template.HTML
-	Dashboard   *DashboardData
-	Dates       []string
-	Days        []DailyInfo
-	ReportText  string
-	ReportHTML  template.HTML
-	ProjectName string
-	Entries     []Entry
-	PrevDate    string
-	NextDate    string
+	Title          string
+	Content        template.HTML
+	Dashboard      *DashboardData
+	Dates          []string
+	Days           []DailyInfo
+	ReportText     string
+	ReportHTML     template.HTML
+	ProjectName    string
+	Entries        []Entry
+	PrevDate       string
+	NextDate       string
 	PrevURL        string // previous report URL for nav
 	NextURL        string // next report URL for nav
 	ReportType     string // "standup" or "weekly"
@@ -636,19 +636,25 @@ func build(outDir string, templatesDir string) {
 	data := parseJournalFiles()
 	dates := getDates(data)
 
-	os.MkdirAll(outDir, 0o755)
-	os.MkdirAll(filepath.Join(outDir, "daily"), 0o755)
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create output dir: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.MkdirAll(filepath.Join(outDir, "daily"), 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create daily dir: %v\n", err)
+		os.Exit(1)
+	}
 
 	// Dashboard
 	dash := buildDashboard(data)
 	page := PageData{Title: "Dashboard", Dashboard: &dash, Dates: dates}
 	out, _ := renderPage("dashboard.html", templatesDir, page)
-	os.WriteFile(filepath.Join(outDir, "index.html"), out, 0o644)
+	_ = os.WriteFile(filepath.Join(outDir, "index.html"), out, 0o644)
 
 	// Daily list
 	listPage := PageData{Title: "Daily Entries", Dates: dates, Days: getDailyInfos(data)}
 	out, _ = renderPage("daily-list.html", templatesDir, listPage)
-	os.WriteFile(filepath.Join(outDir, "daily", "index.html"), out, 0o644)
+	_ = os.WriteFile(filepath.Join(outDir, "daily", "index.html"), out, 0o644)
 
 	// Each daily entry
 	for _, date := range dates {
@@ -667,8 +673,8 @@ func build(outDir string, templatesDir string) {
 			NextDate: nextDate,
 		}
 		out, _ = renderPage("daily-entry.html", templatesDir, entryPage)
-		os.MkdirAll(filepath.Join(outDir, "daily", date), 0o755)
-		os.WriteFile(filepath.Join(outDir, "daily", date, "index.html"), out, 0o644)
+		_ = os.MkdirAll(filepath.Join(outDir, "daily", date), 0o755)
+		_ = os.WriteFile(filepath.Join(outDir, "daily", date, "index.html"), out, 0o644)
 	}
 
 	fmt.Printf("Built %d pages to %s/\n", 2+len(dates), outDir)

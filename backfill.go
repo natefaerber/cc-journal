@@ -195,7 +195,7 @@ func runBackfill(days int, dryRun bool) {
 		}
 		if _, err := f.WriteString(entry); err != nil {
 			fmt.Printf("    Failed to write entry: %v\n", err)
-			f.Close()
+			_ = f.Close()
 			continue
 		}
 		if err := f.Close(); err != nil {
