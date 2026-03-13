@@ -2,12 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
-	"strings"
 	"time"
+
+	"github.com/urfave/cli/v3"
 )
 
 var (
@@ -17,273 +18,336 @@ var (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Printf("cc-journal %s (%s) built %s\n", version, commit, buildTime)
-		return
-	}
-	if len(os.Args) > 1 && os.Args[1] == "debug-key" {
-		cfg = loadConfig()
-		fmt.Printf("cfg.APIKey set: %v (len=%d)\n", cfg.APIKey != "", len(cfg.APIKey))
-		if cfg.APIKey != "" {
-			fmt.Printf("cfg.APIKey prefix: %s...\n", cfg.APIKey[:min(15, len(cfg.APIKey))])
-		}
-		key, err := getAPIKey()
-		if err != nil {
-			fmt.Printf("getAPIKey error: %v\n", err)
-			return
-		}
-		fmt.Printf("getAPIKey result: %s... (len=%d)\n", key[:min(15, len(key))], len(key))
-		// Quick validation
-		req, _ := http.NewRequest("POST", apiURL, bytes.NewReader([]byte(`{"model":"claude-sonnet-4-20250514","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}`)))
-		req.Header.Set("x-api-key", key)
-		req.Header.Set("anthropic-version", apiVersion)
-		req.Header.Set("content-type", "application/json")
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			fmt.Printf("API test error: %v\n", err)
-			return
-		}
-		defer func() { _ = resp.Body.Close() }()
-		fmt.Printf("API test: HTTP %d\n", resp.StatusCode)
-		return
-	}
-
 	cfg = loadConfig()
 
-	if len(os.Args) < 2 {
-		printUsage()
+	app := &cli.Command{
+		Name:    "cc-journal",
+		Usage:   "Claude Code developer journal",
+		Version: fmt.Sprintf("%s (%s) built %s", version, commit, buildTime),
+		Commands: []*cli.Command{
+			// Site commands
+			{
+				Name:     "serve",
+				Usage:    "Start dev server with live reload. Send SIGHUP to reload config.",
+				Category: "site",
+				Flags: []cli.Flag{
+					&cli.IntFlag{Name: "port", Value: 8000, Usage: "port to listen on"},
+					&cli.StringFlag{Name: "templates", Usage: "custom templates directory"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					serve(int(cmd.Int("port")), cmd.String("templates"))
+					return nil
+				},
+			},
+			{
+				Name:     "build",
+				Usage:    "Generate static HTML site",
+				Category: "site",
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "out", Value: "public", Usage: "output directory"},
+					&cli.StringFlag{Name: "templates", Usage: "custom templates directory"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					build(cmd.String("out"), cmd.String("templates"))
+					return nil
+				},
+			},
+
+			// Journal commands
+			{
+				Name:     "hook",
+				Usage:    "SessionEnd hook (reads JSON from stdin)",
+				Category: "journal",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					runHook()
+					return nil
+				},
+			},
+			{
+				Name:      "summarize",
+				Usage:     "Summarize a session and write to journal",
+				Category:  "journal",
+				ArgsUsage: "[SESSION_ID]",
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "session", Usage: "session ID to summarize"},
+					&cli.BoolFlag{Name: "force", Usage: "re-summarize even if already journaled"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					sessionID := cmd.String("session")
+					if sessionID == "" && cmd.NArg() > 0 {
+						sessionID = cmd.Args().First()
+					}
+					summarizeSession(sessionID, cmd.Bool("force"))
+					return nil
+				},
+			},
+			{
+				Name:     "backfill",
+				Usage:    "Retroactively summarize recent sessions",
+				Category: "journal",
+				Flags: []cli.Flag{
+					&cli.IntFlag{Name: "days", Value: 30, Usage: "number of days to look back"},
+					&cli.BoolFlag{Name: "dry-run", Usage: "show what would be summarized"},
+					&cli.BoolFlag{Name: "force", Usage: "re-summarize already-journaled sessions"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					runBackfill(int(cmd.Int("days")), cmd.Bool("dry-run"), cmd.Bool("force"))
+					return nil
+				},
+			},
+			{
+				Name:     "prune",
+				Usage:    "Remove failed summary entries",
+				Category: "journal",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{Name: "dry-run", Usage: "show what would be pruned"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					runPrune(cmd.Bool("dry-run"))
+					return nil
+				},
+			},
+			{
+				Name:      "remove",
+				Usage:     "Delete entry and deny from future backfills",
+				Category:  "journal",
+				ArgsUsage: "<SESSION_ID>",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					sessionID := ""
+					if cmd.NArg() > 0 {
+						sessionID = cmd.Args().First()
+					}
+					runRemove(sessionID)
+					return nil
+				},
+			},
+
+			// Browse commands
+			{
+				Name:     "today",
+				Usage:    "Print today's journal entries",
+				Category: "browse",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					showToday()
+					return nil
+				},
+			},
+			{
+				Name:      "show",
+				Usage:     "Print a specific date's journal entries",
+				Category:  "browse",
+				ArgsUsage: "<DATE>",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					if cmd.NArg() == 0 {
+						return fmt.Errorf("date required (YYYY-MM-DD)")
+					}
+					showDate(cmd.Args().First())
+					return nil
+				},
+			},
+			{
+				Name:     "list",
+				Usage:    "List all journal files",
+				Category: "browse",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					listEntries()
+					return nil
+				},
+			},
+			{
+				Name:      "search",
+				Usage:     "Search journal entries by text",
+				Category:  "browse",
+				ArgsUsage: "<QUERY>...",
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "project", Aliases: []string{"p"}, Usage: "filter by project name"},
+					&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 20, Usage: "max results"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					runSearchCLI(cmd.Args().Slice(), cmd.String("project"), int(cmd.Int("limit")))
+					return nil
+				},
+			},
+			{
+				Name:      "week",
+				Usage:     "Print this week's entries or generate rollup",
+				Category:  "browse",
+				ArgsUsage: "[DATE]",
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "date", Usage: "week containing this date"},
+					&cli.BoolFlag{Name: "rollup", Usage: "generate AI-powered weekly rollup"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					date := cmd.String("date")
+					if date == "" && cmd.NArg() > 0 {
+						date = cmd.Args().First()
+					}
+					if cmd.Bool("rollup") {
+						generateRollup(date)
+					} else {
+						showWeek(date)
+					}
+					return nil
+				},
+			},
+			{
+				Name:      "rollup",
+				Usage:     "Generate AI-powered weekly rollup",
+				Category:  "browse",
+				ArgsUsage: "[DATE]",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					date := ""
+					if cmd.NArg() > 0 {
+						date = cmd.Args().First()
+					}
+					generateRollup(date)
+					return nil
+				},
+			},
+
+			// Report commands
+			{
+				Name:      "standup",
+				Usage:     "Print daily standup report",
+				Category:  "report",
+				ArgsUsage: "[DATE]",
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "date", Usage: "date (YYYY-MM-DD, default: today)"},
+					&cli.BoolFlag{Name: "copy", Usage: "copy to clipboard"},
+					&cli.StringFlag{Name: "slack", Usage: "send to Slack channel"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					target := time.Now()
+					dateStr := cmd.String("date")
+					if dateStr == "" && cmd.NArg() > 0 {
+						dateStr = cmd.Args().First()
+					}
+					if dateStr != "" {
+						t, err := time.Parse("2006-01-02", dateStr)
+						if err != nil {
+							return fmt.Errorf("invalid date: %s (use YYYY-MM-DD)", dateStr)
+						}
+						target = t
+					}
+					output := formatDaily(target)
+					fmt.Print(output)
+					return handleOutput(cmd, output)
+				},
+			},
+			{
+				Name:     "weekly",
+				Usage:    "Print weekly status report",
+				Category: "report",
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "start", Usage: "start date (YYYY-MM-DD)"},
+					&cli.StringFlag{Name: "end", Usage: "end date (YYYY-MM-DD)"},
+					&cli.BoolFlag{Name: "copy", Usage: "copy to clipboard"},
+					&cli.StringFlag{Name: "slack", Usage: "send to Slack channel"},
+				},
+				ArgsUsage: "[START]",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					now := time.Now()
+					start, end := weekRange(now)
+					startStr := cmd.String("start")
+					if startStr == "" && cmd.NArg() > 0 {
+						startStr = cmd.Args().First()
+					}
+					if startStr != "" {
+						t, err := time.Parse("2006-01-02", startStr)
+						if err != nil {
+							return fmt.Errorf("invalid start date: %s (use YYYY-MM-DD)", startStr)
+						}
+						start = t
+					}
+					if endStr := cmd.String("end"); endStr != "" {
+						t, err := time.Parse("2006-01-02", endStr)
+						if err != nil {
+							return fmt.Errorf("invalid end date: %s (use YYYY-MM-DD)", endStr)
+						}
+						end = t
+					}
+					output := formatWeekly(start, end)
+					fmt.Print(output)
+					return handleOutput(cmd, output)
+				},
+			},
+
+			// Setup commands
+			{
+				Name:     "init",
+				Usage:    "Export default templates, prompts, and Claude Code commands",
+				Category: "setup",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{Name: "templates", Usage: "export HTML templates only"},
+					&cli.BoolFlag{Name: "prompts", Usage: "export prompt templates only"},
+					&cli.BoolFlag{Name: "commands", Usage: "install Claude Code slash commands"},
+					&cli.BoolFlag{Name: "all", Usage: "export templates, prompts, and commands"},
+					&cli.BoolFlag{Name: "force", Usage: "overwrite existing files"},
+					&cli.BoolFlag{Name: "stdout", Usage: "print to stdout instead of writing files"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					runInitCLI(cmd)
+					return nil
+				},
+			},
+
+			// Debug (hidden)
+			{
+				Name:   "debug-key",
+				Hidden: true,
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					debugKey()
+					return nil
+				},
+			},
+		},
+	}
+
+	if err := app.Run(context.Background(), os.Args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-
-	cmd := os.Args[1]
-	args := os.Args[2:]
-
-	switch cmd {
-	case "serve":
-		port := 8000
-		for i, a := range args {
-			if a == "--port" && i+1 < len(args) {
-				if p, err := strconv.Atoi(args[i+1]); err == nil {
-					port = p
-				}
-			}
-		}
-		templatesDir := flagValue(args, "--templates")
-		serve(port, templatesDir)
-
-	case "build":
-		outDir := flagValue(args, "--out")
-		if outDir == "" {
-			outDir = "public"
-		}
-		templatesDir := flagValue(args, "--templates")
-		build(outDir, templatesDir)
-
-	case "standup":
-		target := time.Now()
-		if dateArg := positionalOrFlag(args, "--date"); dateArg != "" {
-			if t, err := time.Parse("2006-01-02", dateArg); err == nil {
-				target = t
-			} else {
-				fmt.Fprintf(os.Stderr, "Invalid date: %s (use YYYY-MM-DD)\n", dateArg)
-				os.Exit(1)
-			}
-		}
-		output := formatDaily(target)
-		fmt.Print(output)
-		handleOutputActions(args, output)
-
-	case "weekly":
-		now := time.Now()
-		start, end := weekRange(now)
-		if startArg := positionalOrFlag(args, "--start"); startArg != "" {
-			if t, err := time.Parse("2006-01-02", startArg); err == nil {
-				start = t
-			} else {
-				fmt.Fprintf(os.Stderr, "Invalid start date: %s (use YYYY-MM-DD)\n", startArg)
-				os.Exit(1)
-			}
-		}
-		if endArg := flagValue(args, "--end"); endArg != "" {
-			if t, err := time.Parse("2006-01-02", endArg); err == nil {
-				end = t
-			} else {
-				fmt.Fprintf(os.Stderr, "Invalid end date: %s (use YYYY-MM-DD)\n", endArg)
-				os.Exit(1)
-			}
-		}
-		output := formatWeekly(start, end)
-		fmt.Print(output)
-		handleOutputActions(args, output)
-
-	case "summarize":
-		sessionID := flagValue(args, "--session")
-		if sessionID == "" && len(args) > 0 && !strings.HasPrefix(args[0], "--") {
-			sessionID = args[0]
-		}
-		force := hasFlag(args, "--force")
-		summarizeSession(sessionID, force)
-
-	case "hook":
-		runHook()
-
-	case "backfill":
-		days := 30
-		if v := flagValue(args, "--days"); v != "" {
-			if d, err := strconv.Atoi(v); err == nil {
-				days = d
-			}
-		}
-		dryRun := hasFlag(args, "--dry-run")
-		force := hasFlag(args, "--force")
-		runBackfill(days, dryRun, force)
-
-	case "today":
-		showToday()
-
-	case "show":
-		date := ""
-		if len(args) > 0 && !strings.HasPrefix(args[0], "--") {
-			date = args[0]
-		}
-		if date == "" {
-			fmt.Fprintln(os.Stderr, "Usage: cc-journal-site show YYYY-MM-DD")
-			os.Exit(1)
-		}
-		showDate(date)
-
-	case "list":
-		listEntries()
-
-	case "week":
-		date := flagValue(args, "--date")
-		if date == "" && len(args) > 0 && !strings.HasPrefix(args[0], "--") {
-			date = args[0]
-		}
-		if hasFlag(args, "--rollup") {
-			generateRollup(date)
-		} else {
-			showWeek(date)
-		}
-
-	case "rollup":
-		date := ""
-		if len(args) > 0 && !strings.HasPrefix(args[0], "--") {
-			date = args[0]
-		}
-		generateRollup(date)
-
-	case "prune":
-		dryRun := hasFlag(args, "--dry-run")
-		runPrune(dryRun)
-
-	case "remove":
-		sessionID := ""
-		if len(args) > 0 && !strings.HasPrefix(args[0], "--") {
-			sessionID = args[0]
-		}
-		runRemove(sessionID)
-
-	case "init":
-		runInit(args)
-
-	case "search":
-		runSearch(args)
-
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", cmd)
-		printUsage()
-		os.Exit(1)
-	}
 }
 
-func printUsage() {
-	fmt.Fprintf(os.Stderr, `cc-journal-site — Claude Code developer journal
-
-Usage:
-  cc-journal-site <command> [options]
-
-Site Commands:
-  serve     [--port 8000] [--templates DIR]  Start dev server with live reload
-  build     [--out public] [--templates DIR]  Generate static HTML
-
-Journal Commands:
-  hook                          SessionEnd hook (reads JSON from stdin)
-  summarize [SESSION_ID]        Summarize a session and write to journal
-  backfill  [--days 30] [--dry-run] [--force]  Summarize existing sessions
-  prune     [--dry-run]         Remove failed summary entries
-  remove    SESSION_ID          Delete entry + deny from future backfills
-
-Browse Commands:
-  today                         Print today's journal entries
-  show DATE                     Print a specific date's entries
-  list                          List all journal files
-  search QUERY [--project P] [--limit N]  Search entries by text
-  week [DATE] [--rollup]        Print this week's entries (or generate rollup)
-  rollup [DATE]                 Generate AI-powered weekly rollup
-
-Report Commands:
-  standup   [DATE] [--copy] [--slack [CHANNEL]]  Print daily standup (default: today)
-  weekly    [START] [--end END] [--copy] [--slack [CHANNEL]]  Print weekly status (default: this week)
-
-Setup:
-  init      [--templates] [--prompts] [--commands] [--force] [--stdout]  Export defaults
-
-Other:
-  version                       Print version information
-`)
-}
-
-func flagValue(args []string, flag string) string {
-	for i, a := range args {
-		if a == flag && i+1 < len(args) {
-			return args[i+1]
-		}
-	}
-	return ""
-}
-
-// positionalOrFlag returns the first positional arg (non-flag) or the value of the named flag.
-func positionalOrFlag(args []string, flag string) string {
-	if v := flagValue(args, flag); v != "" {
-		return v
-	}
-	for _, a := range args {
-		if !strings.HasPrefix(a, "--") {
-			return a
-		}
-	}
-	return ""
-}
-
-func hasFlag(args []string, flag string) bool {
-	for _, a := range args {
-		if a == flag {
-			return true
-		}
-	}
-	return false
-}
-
-// handleOutputActions processes --copy and --slack flags for report commands.
-func handleOutputActions(args []string, output string) {
-	if hasFlag(args, "--copy") {
+// handleOutput processes --copy and --slack flags for report commands.
+func handleOutput(cmd *cli.Command, output string) error {
+	if cmd.Bool("copy") {
 		if err := copyToClipboard(output); err != nil {
-			fmt.Fprintf(os.Stderr, "\nFailed to copy: %v\n", err)
-		} else {
-			fmt.Println("\n\nCopied to clipboard")
+			return fmt.Errorf("failed to copy: %w", err)
 		}
+		fmt.Println("\n\nCopied to clipboard")
 	}
 
-	if hasFlag(args, "--slack") {
-		// --slack '#channel' overrides config default
-		channel := flagValue(args, "--slack")
-		if channel != "" && strings.HasPrefix(channel, "--") {
-			channel = "" // next arg is another flag, not a channel
-		}
+	if cmd.IsSet("slack") {
+		channel := cmd.String("slack")
 		if err := sendToSlack(output, channel); err != nil {
-			fmt.Fprintf(os.Stderr, "\nFailed to send to Slack: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to send to Slack: %w", err)
 		}
 	}
+	return nil
+}
+
+// debugKey tests API key configuration.
+func debugKey() {
+	fmt.Printf("cfg.APIKey set: %v (len=%d)\n", cfg.APIKey != "", len(cfg.APIKey))
+	if cfg.APIKey != "" {
+		fmt.Printf("cfg.APIKey prefix: %s...\n", cfg.APIKey[:min(15, len(cfg.APIKey))])
+	}
+	key, err := getAPIKey()
+	if err != nil {
+		fmt.Printf("getAPIKey error: %v\n", err)
+		return
+	}
+	fmt.Printf("getAPIKey result: %s... (len=%d)\n", key[:min(15, len(key))], len(key))
+	req, _ := http.NewRequest("POST", apiURL, bytes.NewReader([]byte(`{"model":"claude-sonnet-4-20250514","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}`)))
+	req.Header.Set("x-api-key", key)
+	req.Header.Set("anthropic-version", apiVersion)
+	req.Header.Set("content-type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("API test error: %v\n", err)
+		return
+	}
+	defer func() { _ = resp.Body.Close() }()
+	fmt.Printf("API test: HTTP %d\n", resp.StatusCode)
 }

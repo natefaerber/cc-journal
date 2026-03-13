@@ -108,28 +108,8 @@ func extractSnippet(text, query string, window int) string {
 	return prefix + clean[start:end] + suffix
 }
 
-// runSearch is the CLI entry point for the search command.
-func runSearch(args []string) {
-	// Collect query from non-flag args
-	var queryParts []string
-	project := flagValue(args, "--project")
-	limitStr := flagValue(args, "--limit")
-	limit := 20
-	if limitStr != "" {
-		_, _ = fmt.Sscanf(limitStr, "%d", &limit)
-	}
-
-	for i := 0; i < len(args); i++ {
-		if args[i] == "--project" || args[i] == "--limit" {
-			i++ // skip value
-			continue
-		}
-		if strings.HasPrefix(args[i], "--") {
-			continue
-		}
-		queryParts = append(queryParts, args[i])
-	}
-
+// runSearchCLI is the CLI entry point for the search command.
+func runSearchCLI(queryParts []string, project string, limit int) {
 	query := strings.Join(queryParts, " ")
 	if query == "" {
 		fmt.Fprintln(os.Stderr, "Usage: cc-journal search <QUERY> [--project PROJECT] [--limit N]")
@@ -166,4 +146,3 @@ func runSearch(args []string) {
 	}
 	fmt.Printf("Found %d result%s for %q\n", len(results), plural(len(results)), query)
 }
-

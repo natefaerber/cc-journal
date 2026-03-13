@@ -5,7 +5,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
+
+	"github.com/urfave/cli/v3"
 )
 
 // builtinPrompts maps prompt names to their default content.
@@ -32,22 +33,14 @@ After running, show the user the output. If the command succeeds, let them know 
 `,
 }
 
-func runInit(args []string) {
-	doTemplates := hasFlag(args, "--templates") || hasFlag(args, "--all")
-	doPrompts := hasFlag(args, "--prompts") || hasFlag(args, "--all")
-	doCommands := hasFlag(args, "--commands") || hasFlag(args, "--all")
-	force := hasFlag(args, "--force")
-	toStdout := hasFlag(args, "--stdout")
+func runInitCLI(cmd *cli.Command) {
+	doTemplates := cmd.Bool("templates") || cmd.Bool("all")
+	doPrompts := cmd.Bool("prompts") || cmd.Bool("all")
+	doCommands := cmd.Bool("commands") || cmd.Bool("all")
+	force := cmd.Bool("force")
+	toStdout := cmd.Bool("stdout")
 
 	if !doTemplates && !doPrompts && !doCommands {
-		// If flags were passed but none matched, warn about unknown flags
-		for _, a := range args {
-			if strings.HasPrefix(a, "--") && a != "--force" && a != "--stdout" {
-				fmt.Fprintf(os.Stderr, "Unknown flag: %s\n", a)
-				fmt.Fprintf(os.Stderr, "Valid flags: --templates, --prompts, --commands, --all, --force, --stdout\n")
-				os.Exit(1)
-			}
-		}
 		doTemplates = true
 		doPrompts = true
 		doCommands = true
