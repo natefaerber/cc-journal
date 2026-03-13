@@ -219,11 +219,45 @@ window.addEventListener('DOMContentLoaded', function() {
       }
     }
 
+    var infoSvg = '<svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 7v4M8 5.5v0"/></svg>';
+
+    // Build session data object for info panel
+    var sessionData = {
+      id: sessionId, cwd: cwd, summary: '',
+      project: '', branch: '', date: '', time: ''
+    };
+    // Extract project/branch/time from h2 text: "project (branch) — HH:MM–HH:MM"
+    var h2Text = h2.textContent.trim();
+    var h2Match = h2Text.match(/^(.+?)\s+\((.+?)\)\s+—\s+(.+)$/);
+    if (h2Match) {
+      sessionData.project = h2Match[1];
+      sessionData.branch = h2Match[2];
+      sessionData.time = h2Match[3];
+    }
+    // Extract date from URL path
+    var pathMatch = window.location.pathname.match(/\/daily\/(\d{4}-\d{2}-\d{2})/);
+    if (pathMatch) sessionData.date = pathMatch[1];
+    // Extract token values
+    if (tokensStr) {
+      var tp = {};
+      tokensStr.replace('tokens:', '').split(',').forEach(function(p) {
+        var kv = p.split('=');
+        tp[kv[0]] = parseInt(kv[1]) || 0;
+      });
+      sessionData['in'] = tp['in'] || 0;
+      sessionData.out = tp['out'] || 0;
+      sessionData.cache_create = tp['cache_create'] || 0;
+      sessionData.cache_read = tp['cache_read'] || 0;
+      sessionData.summary_in = tp['summary_in'] || 0;
+      sessionData.summary_out = tp['summary_out'] || 0;
+    }
+
     metaBar.innerHTML =
       '<code class="cursor-pointer hover:text-accent transition-colors" onclick="copyText(this, \'' + sessionId + '\')" title="Click to copy session ID">' + sessionId + '</code>' +
       (cwd ? '<span>\u00B7</span><code class="cursor-pointer hover:text-accent transition-colors" onclick="copyText(this, \'' + cwd.replace(/'/g, "\\'") + '\')" title="Click to copy path">' + cwd + '</code>' : '') +
       tokensHtml +
       '<div class="session-actions">' +
+        '<button class="action-link" title="Session info (i)" data-action="info">' + infoSvg + '<span class="shortcut-hint ml-0.5">i</span></button>' +
         '<a href="#' + sessionId + '" class="action-link" title="Copy permalink (y)" data-action="link">' + linkSvg + '<span class="shortcut-hint ml-0.5">y</span></a>' +
         '<button class="action-resume" title="Copy resume command (r)" data-action="resume">' + resumeSvg + '<span class="shortcut-hint ml-0.5">r</span></button>' +
         '<button class="action-delete" title="Delete entry (x)" data-action="delete">' + trashSvg + '<span class="shortcut-hint ml-0.5">x</span></button>' +
@@ -242,6 +276,11 @@ window.addEventListener('DOMContentLoaded', function() {
     h2.appendChild(link);
 
     // Wire up action buttons
+    metaBar.querySelector('[data-action="info"]').onclick = function(e) {
+      e.stopPropagation();
+      openSessionPanel(sessionData);
+    };
+    wrapper.dataset.sessionJSON = JSON.stringify(sessionData);
     metaBar.querySelector('[data-action="link"]').onclick = function(e) {
       e.preventDefault();
       copyPermalink(sessionId);
@@ -354,7 +393,11 @@ window.addEventListener('DOMContentLoaded', function() {
       var sid = focused.dataset.sessionId;
       var cwd = focused.dataset.cwd;
 
-      if (e.key === 'y' && sid) {
+      if (e.key === 'i' && sid) {
+        e.preventDefault();
+        var sData = focused.dataset.sessionJSON;
+        if (sData) openSessionPanel(JSON.parse(sData));
+      } else if (e.key === 'y' && sid) {
         e.preventDefault();
         copyPermalink(sid);
       } else if (e.key === 'r' && sid) {

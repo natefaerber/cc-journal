@@ -38,7 +38,7 @@
 - [ ] **Session timeline view** — Visual timeline of sessions within a day
 - [ ] **Trends & analytics** — Coding velocity charts, project distribution over time, streak tracking
 - [ ] **Theme support** — Switchable themes (light/dark/system) with CSS custom properties; allow users to define custom themes via config or template overrides
-- [ ] **Session info panel** — Slide-over panel on session click (like iOS Photos EXIF) showing full token breakdown (input, output, cache create, cache read, summary), cost estimate, duration, links, and session metadata without relying on hover tooltips
+- [x] **Session info panel** — Right-side drawer on session click showing full token breakdown (input, output, cache create, cache read, summary), estimated cost (Sonnet pricing), duration, links, working directory, and session metadata. Available on dashboard, project, and daily views with keyboard shortcut (`i`) support
 - [ ] **Mobile-friendly layout** — Responsive design improvements for phone/tablet
 
 ## Journal Quality
@@ -72,9 +72,9 @@
 
 **Near-term focus:**
 
-1. Session info panel
-2. MCP server or REST API
-3. Filtering & facets
+1. MCP server or REST API
+2. Filtering & facets
+3. Multi-branch tracking + better reports
 
 **Medium-term:**
 4. Summary regeneration

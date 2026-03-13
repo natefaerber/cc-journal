@@ -71,6 +71,105 @@
     </div>
   </div>
 
+  <!-- Session Info Panel -->
+  <div id="session-panel-overlay" class="fixed inset-0 z-[90] bg-foreground/20 backdrop-blur-[2px] hidden" onclick="closeSessionPanel()"></div>
+  <div id="session-panel" class="fixed top-0 right-0 z-[91] h-full w-full max-w-md bg-card border-l border-border shadow-2xl translate-x-full transition-transform duration-200 ease-out overflow-y-auto">
+    <div class="sticky top-0 bg-card/95 backdrop-blur-sm border-b border-border px-5 py-3 flex items-center justify-between z-10">
+      <h3 id="sp-title" class="text-sm font-sans font-semibold text-foreground truncate"></h3>
+      <button onclick="closeSessionPanel()" class="text-muted-foreground hover:text-foreground transition-colors p-1" title="Close (Escape)">
+        <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="px-5 py-4 space-y-5">
+      <!-- Metadata -->
+      <div class="space-y-2.5">
+        <div class="flex items-center gap-2">
+          <span class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-sans font-semibold w-16 shrink-0">Project</span>
+          <a id="sp-project" href="#" class="text-sm font-mono text-secondary hover:text-accent transition-colors"></a>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-sans font-semibold w-16 shrink-0">Branch</span>
+          <span id="sp-branch" class="text-sm font-mono text-foreground/80"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-sans font-semibold w-16 shrink-0">Date</span>
+          <a id="sp-date" href="#" class="text-sm font-mono text-warning hover:text-accent transition-colors"></a>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-sans font-semibold w-16 shrink-0">Time</span>
+          <span id="sp-time" class="text-sm font-mono text-foreground/80"></span>
+          <span id="sp-duration" class="text-xs font-sans text-muted-foreground"></span>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-sans font-semibold w-16 shrink-0 pt-0.5">Path</span>
+          <code id="sp-cwd" class="text-xs font-mono text-foreground/70 break-all cursor-pointer hover:text-accent transition-colors" title="Click to copy"></code>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-sans font-semibold w-16 shrink-0 pt-0.5">Session</span>
+          <code id="sp-session-id" class="text-xs font-mono text-foreground/70 break-all cursor-pointer hover:text-accent transition-colors" title="Click to copy"></code>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div id="sp-summary-section">
+        <div class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-sans font-semibold mb-1.5">Summary</div>
+        <p id="sp-summary" class="text-sm text-foreground/80 leading-relaxed"></p>
+      </div>
+
+      <!-- Tokens -->
+      <div id="sp-tokens-section" class="hidden">
+        <div class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-sans font-semibold mb-2">Tokens</div>
+        <div class="bg-muted/50 border border-border rounded-lg p-3 space-y-2 font-mono text-xs">
+          <div class="flex justify-between">
+            <span class="text-muted-foreground font-sans">Session input</span>
+            <span id="sp-tok-in" class="text-foreground"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted-foreground font-sans">Session output</span>
+            <span id="sp-tok-out" class="text-foreground"></span>
+          </div>
+          <div id="sp-cache-row" class="flex justify-between text-muted-foreground/80">
+            <span class="font-sans pl-3">Cache create</span>
+            <span id="sp-tok-cache-create"></span>
+          </div>
+          <div id="sp-cache-read-row" class="flex justify-between text-muted-foreground/80">
+            <span class="font-sans pl-3">Cache read</span>
+            <span id="sp-tok-cache-read"></span>
+          </div>
+          <div class="border-t border-border pt-2 flex justify-between">
+            <span class="text-muted-foreground font-sans">Summary input</span>
+            <span id="sp-tok-sum-in" class="text-foreground"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted-foreground font-sans">Summary output</span>
+            <span id="sp-tok-sum-out" class="text-foreground"></span>
+          </div>
+          <div class="border-t border-border pt-2 flex justify-between font-semibold">
+            <span class="font-sans">Est. cost</span>
+            <span id="sp-cost" class="text-accent"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Links -->
+      <div id="sp-links-section" class="hidden">
+        <div class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-sans font-semibold mb-1.5">Links</div>
+        <div id="sp-links" class="space-y-1"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-2 pt-2 border-t border-border">
+        <button id="sp-btn-resume" class="flex-1 inline-flex items-center justify-center gap-1.5 bg-accent text-accent-foreground text-xs font-sans font-medium py-2 px-3 rounded-md hover:bg-accent/90 transition-colors cursor-pointer">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v12l4-3 4 3V2H3z"/><path d="M7 6h4M9 4v4"/></svg>
+          Copy Resume Command
+        </button>
+        <a id="sp-btn-view" href="#" class="inline-flex items-center justify-center gap-1.5 border border-border text-foreground/80 text-xs font-sans font-medium py-2 px-3 rounded-md hover:border-accent hover:text-accent transition-colors no-underline">
+          View
+        </a>
+      </div>
+    </div>
+  </div>
+
   <script>
   var resumeSvg = '<svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v12l4-3 4 3V2H3z"/><path d="M7 6h4M9 4v4"/></svg>';
   var checkSvg = '<svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l3 3 7-7"/></svg>';
@@ -87,6 +186,125 @@
         btn.title = 'Copy claude --resume command to clipboard';
       }, 2000);
     });
+  }
+
+  // Session info panel
+  function fmtTokens(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    return String(n);
+  }
+
+  function calcDuration(timeRange) {
+    if (!timeRange) return '';
+    var parts = timeRange.split('\u2013'); // en-dash
+    if (parts.length !== 2) return '';
+    var parse = function(t) {
+      var p = t.trim().split(':');
+      return parseInt(p[0]) * 60 + parseInt(p[1]);
+    };
+    var mins = parse(parts[1]) - parse(parts[0]);
+    if (mins <= 0) return '';
+    var h = Math.floor(mins / 60);
+    var m = mins % 60;
+    return h > 0 ? h + 'h' + (m > 0 ? m + 'm' : '') : m + 'm';
+  }
+
+  function estimateCost(d) {
+    // Sonnet pricing: input $3/M, output $15/M, cache_create $3.75/M, cache_read $0.30/M
+    var cost = (d['in'] || 0) * 3 / 1e6
+      + (d.out || 0) * 15 / 1e6
+      + (d.cache_create || 0) * 3.75 / 1e6
+      + (d.cache_read || 0) * 0.30 / 1e6
+      + (d.summary_in || 0) * 3 / 1e6
+      + (d.summary_out || 0) * 15 / 1e6;
+    if (cost < 0.005) return '<$0.01';
+    return '$' + cost.toFixed(2);
+  }
+
+  var serviceLabels = {github:'GitHub', linear:'Linear', jira:'Jira', confluence:'Confluence'};
+
+  function openSessionPanel(d) {
+    var panel = document.getElementById('session-panel');
+    var overlay = document.getElementById('session-panel-overlay');
+
+    document.getElementById('sp-title').textContent = d.project + ' (' + d.branch + ')';
+    document.getElementById('sp-project').textContent = d.project;
+    document.getElementById('sp-project').href = '/project/' + d.project;
+    document.getElementById('sp-branch').textContent = d.branch;
+    document.getElementById('sp-date').textContent = d.date;
+    document.getElementById('sp-date').href = '/daily/' + d.date + '#' + d.id;
+    document.getElementById('sp-time').textContent = d.time || '\u2014';
+    document.getElementById('sp-duration').textContent = calcDuration(d.time);
+    document.getElementById('sp-cwd').textContent = d.cwd || '\u2014';
+    document.getElementById('sp-cwd').onclick = function() {
+      if (d.cwd) { navigator.clipboard.writeText(d.cwd); spFlash(this, 'Copied!'); }
+    };
+    document.getElementById('sp-session-id').textContent = d.id;
+    document.getElementById('sp-session-id').onclick = function() {
+      navigator.clipboard.writeText(d.id); spFlash(this, 'Copied!');
+    };
+    document.getElementById('sp-summary').textContent = d.summary || '';
+    document.getElementById('sp-summary-section').style.display = d.summary ? '' : 'none';
+
+    // Tokens
+    var hasTokens = (d['in'] || 0) + (d.out || 0) > 0;
+    var tokSection = document.getElementById('sp-tokens-section');
+    tokSection.classList.toggle('hidden', !hasTokens);
+    if (hasTokens) {
+      var sessIn = (d['in'] || 0) + (d.cache_create || 0) + (d.cache_read || 0);
+      document.getElementById('sp-tok-in').textContent = sessIn.toLocaleString();
+      document.getElementById('sp-tok-out').textContent = (d.out || 0).toLocaleString();
+      document.getElementById('sp-tok-cache-create').textContent = (d.cache_create || 0).toLocaleString();
+      document.getElementById('sp-tok-cache-read').textContent = (d.cache_read || 0).toLocaleString();
+      document.getElementById('sp-cache-row').style.display = d.cache_create ? '' : 'none';
+      document.getElementById('sp-cache-read-row').style.display = d.cache_read ? '' : 'none';
+      document.getElementById('sp-tok-sum-in').textContent = (d.summary_in || 0).toLocaleString();
+      document.getElementById('sp-tok-sum-out').textContent = (d.summary_out || 0).toLocaleString();
+      document.getElementById('sp-cost').textContent = estimateCost(d);
+    }
+
+    // Links
+    var linksSection = document.getElementById('sp-links-section');
+    var linksEl = document.getElementById('sp-links');
+    linksEl.innerHTML = '';
+    if (d.links && d.links.length > 0) {
+      linksSection.classList.remove('hidden');
+      d.links.forEach(function(lk) {
+        var a = document.createElement('a');
+        a.href = lk.URL || lk.url;
+        a.target = '_blank';
+        a.className = 'flex items-center gap-2 text-xs font-mono text-secondary hover:text-accent transition-colors no-underline py-0.5';
+        a.innerHTML = '<span class="text-muted-foreground text-[0.6rem] font-sans uppercase">' +
+          (serviceLabels[lk.Service || lk.service] || 'Link') + '</span>' + escHtml(lk.Label || lk.label);
+        linksEl.appendChild(a);
+      });
+    } else {
+      linksSection.classList.add('hidden');
+    }
+
+    // Actions
+    document.getElementById('sp-btn-resume').onclick = function() { copyResume(d.id, d.cwd); };
+    document.getElementById('sp-btn-view').href = '/daily/' + d.date + '#' + d.id;
+
+    overlay.classList.remove('hidden');
+    requestAnimationFrame(function() {
+      panel.classList.remove('translate-x-full');
+    });
+  }
+
+  function closeSessionPanel() {
+    var panel = document.getElementById('session-panel');
+    var overlay = document.getElementById('session-panel-overlay');
+    panel.classList.add('translate-x-full');
+    overlay.classList.add('hidden');
+  }
+
+  function spFlash(el, msg) {
+    var orig = el.textContent;
+    el.textContent = msg;
+    el.classList.add('text-accent');
+    setTimeout(function() { el.textContent = orig; el.classList.remove('text-accent'); }, 1200);
   }
 
   // Command palette
@@ -228,7 +446,7 @@
       return;
     }
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key === 'Escape') { closePalette(); return; }
+    if (e.key === 'Escape') { closePalette(); closeSessionPanel(); return; }
     if (e.key === 'h') { history.back(); }
     else if (e.key === 'l') { history.forward(); }
     else if (e.key === 'g') { window.scrollTo({top: 0, behavior: 'smooth'}); }

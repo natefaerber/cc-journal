@@ -47,6 +47,42 @@ var funcMap = template.FuncMap{
 		}
 		return fmt.Sprintf("l%d", level)
 	},
+	"sessionJSON": func(e Entry) template.JS {
+		type sj struct {
+			SessionID string `json:"id"`
+			Project   string `json:"project"`
+			Branch    string `json:"branch"`
+			Date      string `json:"date"`
+			TimeRange string `json:"time"`
+			Cwd       string `json:"cwd"`
+			Summary   string `json:"summary"`
+			In        int64  `json:"in"`
+			Out       int64  `json:"out"`
+			CacheCreate int64 `json:"cache_create"`
+			CacheRead   int64 `json:"cache_read"`
+			SummaryIn   int64 `json:"summary_in"`
+			SummaryOut  int64 `json:"summary_out"`
+			Links     []ExternalLink `json:"links,omitempty"`
+		}
+		d := sj{
+			SessionID: e.SessionID,
+			Project:   e.Project,
+			Branch:    e.Branch,
+			Date:      e.Date,
+			TimeRange: e.TimeRange,
+			Cwd:       e.Cwd,
+			Summary:   e.SummaryPreview(),
+			In:        e.Tokens.InputTokens,
+			Out:       e.Tokens.OutputTokens,
+			CacheCreate: e.Tokens.CacheCreationInputTokens,
+			CacheRead:   e.Tokens.CacheReadInputTokens,
+			SummaryIn:   e.Tokens.SummaryInputTokens,
+			SummaryOut:  e.Tokens.SummaryOutputTokens,
+			Links:     e.Links,
+		}
+		b, _ := json.Marshal(d)
+		return template.JS(b)
+	},
 	"serviceIcon": func(service string) string {
 		switch service {
 		case "github":
@@ -324,6 +360,38 @@ func serve(port int, templatesDir string) {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(items)
+	})
+
+	http.HandleFunc("/api/session/", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/api/session/")
+		if id == "" {
+			http.Error(w, "Missing session ID", 400)
+			return
+		}
+		data := parseJournalFiles()
+		for _, e := range data.Entries {
+			if e.SessionID == id {
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"id":           e.SessionID,
+					"project":      e.Project,
+					"branch":       e.Branch,
+					"date":         e.Date,
+					"time":         e.TimeRange,
+					"cwd":          e.Cwd,
+					"summary":      e.Summary,
+					"in":           e.Tokens.InputTokens,
+					"out":          e.Tokens.OutputTokens,
+					"cache_create": e.Tokens.CacheCreationInputTokens,
+					"cache_read":   e.Tokens.CacheReadInputTokens,
+					"summary_in":   e.Tokens.SummaryInputTokens,
+					"summary_out":  e.Tokens.SummaryOutputTokens,
+					"links":        e.Links,
+				})
+				return
+			}
+		}
+		http.NotFound(w, r)
 	})
 
 	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
