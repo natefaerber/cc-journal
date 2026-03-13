@@ -51,9 +51,10 @@ cmd summarize help="Summarize a session and write to journal" {
 }
 
 cmd backfill help="Retroactively summarize recent sessions" {
-    flag "--days" help="Number of days to look back" default="30" {
-        arg <DAYS>
+    flag "--since" help="How far back to look (e.g. 1d, 2h, 30m)" default="30d" {
+        arg <DURATION>
     }
+    flag "--rolling" help="Use rolling duration instead of aligned (days=midnight, hours=top-of-hour)"
     flag "--dry-run" help="Show what would be summarized without writing"
     flag "--force" help="Re-summarize sessions even if already journaled"
 }

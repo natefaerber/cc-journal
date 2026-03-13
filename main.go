@@ -87,12 +87,17 @@ func main() {
 				Usage:    "Retroactively summarize recent sessions",
 				Category: "Journal",
 				Flags: []cli.Flag{
-					&cli.IntFlag{Name: "days", Value: 30, Usage: "number of days to look back"},
+					&cli.StringFlag{Name: "since", Value: "30d", Usage: "how far back to look (e.g. 1d, 2h, 30m)"},
+					&cli.BoolFlag{Name: "rolling", Usage: "use rolling duration instead of aligned (days=midnight, hours=top-of-hour)"},
 					&cli.BoolFlag{Name: "dry-run", Usage: "show what would be summarized"},
 					&cli.BoolFlag{Name: "force", Usage: "re-summarize already-journaled sessions"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					runBackfill(int(cmd.Int("days")), cmd.Bool("dry-run"), cmd.Bool("force"))
+					cutoff, err := parseSince(cmd.String("since"), cmd.Bool("rolling"))
+					if err != nil {
+						return err
+					}
+					runBackfill(cutoff, cmd.Bool("dry-run"), cmd.Bool("force"))
 					return nil
 				},
 			},

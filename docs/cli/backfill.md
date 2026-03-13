@@ -7,11 +7,15 @@ Retroactively summarize recent sessions
 
 ## Flags
 
-### `--days <DAYS>`
+### `--since <DURATION>`
 
-Number of days to look back
+How far back to look (e.g. 1d, 2h, 30m)
 
-**Default:** `30`
+**Default:** `30d`
+
+### `--rolling`
+
+Use rolling duration instead of aligned (days=midnight, hours=top-of-hour)
 
 ### `--dry-run`
 

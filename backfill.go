@@ -10,8 +10,48 @@ import (
 	"time"
 )
 
+// parseSince parses a duration expression like "1d", "2h", "30m" into a cutoff time.
+// By default, days align to midnight and hours align to top-of-hour.
+// With rolling=true, it uses exact duration subtraction.
+func parseSince(expr string, rolling bool) (time.Time, error) {
+	expr = strings.TrimPrefix(expr, "-")
+	if len(expr) < 2 {
+		return time.Time{}, fmt.Errorf("invalid since expression: %q (use e.g. 1d, 2h, 30m)", expr)
+	}
+
+	unit := expr[len(expr)-1]
+	numStr := expr[:len(expr)-1]
+	var n int
+	if _, err := fmt.Sscanf(numStr, "%d", &n); err != nil || n <= 0 {
+		return time.Time{}, fmt.Errorf("invalid since expression: %q", expr)
+	}
+
+	now := time.Now()
+	switch unit {
+	case 'd':
+		if rolling {
+			return now.Add(-time.Duration(n) * 24 * time.Hour), nil
+		}
+		// Midnight-aligned: start of today minus (n-1) days
+		midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		return midnight.AddDate(0, 0, -(n - 1)), nil
+	case 'h':
+		if rolling {
+			return now.Add(-time.Duration(n) * time.Hour), nil
+		}
+		// Top-of-hour aligned
+		topOfHour := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, now.Location())
+		return topOfHour.Add(-time.Duration(n-1) * time.Hour), nil
+	case 'm':
+		// Minutes are always rolling (alignment isn't useful)
+		return now.Add(-time.Duration(n) * time.Minute), nil
+	default:
+		return time.Time{}, fmt.Errorf("unknown unit %q in since expression (use d, h, or m)", string(unit))
+	}
+}
+
 // runBackfill retroactively summarizes existing Claude Code sessions.
-func runBackfill(days int, dryRun bool, force bool) {
+func runBackfill(cutoff time.Time, dryRun bool, force bool) {
 	home, _ := os.UserHomeDir()
 	projectsDir := filepath.Join(home, ".claude", "projects")
 
@@ -19,8 +59,6 @@ func runBackfill(days int, dryRun bool, force bool) {
 		fmt.Fprintln(os.Stderr, "No Claude Code projects found.")
 		os.Exit(1)
 	}
-
-	cutoff := time.Now().AddDate(0, 0, -days)
 
 	// Find all session JSONL files
 	var sessionFiles []struct {
@@ -56,7 +94,7 @@ func runBackfill(days int, dryRun bool, force bool) {
 		return sessionFiles[i].modTime.Before(sessionFiles[j].modTime)
 	})
 
-	fmt.Printf("Found %d session files from the last %d days.\n\n", len(sessionFiles), days)
+	fmt.Printf("Found %d session files since %s.\n\n", len(sessionFiles), cutoff.Format("2006-01-02 15:04"))
 
 	// Collect existing session IDs from journal and deny list
 	existingIDs := collectExistingIDs()
