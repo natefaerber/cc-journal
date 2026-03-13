@@ -12,7 +12,7 @@ set _usage_spec_cc_journal 'name cc-journal
 bin cc-journal
 about "Capture, summarize, and visualize Claude Code sessions as a developer journal"
 min_usage_version "1.3"
-cmd serve help="Start dev server with live reload" {
+cmd serve help="Start dev server with live reload (send SIGHUP to reload config)" {
     flag --port help="Port to listen on" default="8000" {
         arg <PORT>
     }

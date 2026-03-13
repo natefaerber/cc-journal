@@ -3,7 +3,7 @@
 
 - **Usage**: `cc-journal serve [--port <PORT>] [--templates <DIR>]`
 
-Start dev server with live reload
+Start dev server with live reload (send SIGHUP to reload config)
 
 ## Flags
 
