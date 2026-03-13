@@ -208,7 +208,13 @@ func runBackfill(days int, dryRun bool, force bool) {
 		if meta.FirstTime != "" && meta.LastTime != "" {
 			if st, err := time.Parse(time.RFC3339Nano, meta.FirstTime); err == nil {
 				if et, err := time.Parse(time.RFC3339Nano, meta.LastTime); err == nil {
-					timeRange = fmt.Sprintf("%s–%s", st.Local().Format("15:04"), et.Local().Format("15:04"))
+					stLocal := st.Local()
+					etLocal := et.Local()
+					if stLocal.Format("2006-01-02") == etLocal.Format("2006-01-02") {
+						timeRange = fmt.Sprintf("%s–%s", stLocal.Format("15:04"), etLocal.Format("15:04"))
+					} else {
+						timeRange = fmt.Sprintf("%s–%s", stLocal.Format("Jan 02 15:04"), etLocal.Format("Jan 02 15:04"))
+					}
 				}
 			}
 		}

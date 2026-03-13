@@ -534,22 +534,28 @@ func appendToJournal(meta *sessionMeta, summary string) error {
 		return fmt.Errorf("creating journal dir: %w", err)
 	}
 
-	today := time.Now().Format("2006-01-02")
-	journalFile := filepath.Join(dir, today+".md")
+	journalDate := time.Now().Format("2006-01-02")
+	journalFile := filepath.Join(dir, journalDate+".md")
 
-	// Parse time range
+	// Parse time range, include dates if session spans multiple days
 	timeRange := "unknown"
 	if meta.FirstTime != "" && meta.LastTime != "" {
 		if st, err := time.Parse(time.RFC3339Nano, meta.FirstTime); err == nil {
 			if et, err := time.Parse(time.RFC3339Nano, meta.LastTime); err == nil {
-				timeRange = fmt.Sprintf("%s–%s", st.Local().Format("15:04"), et.Local().Format("15:04"))
+				stLocal := st.Local()
+				etLocal := et.Local()
+				if stLocal.Format("2006-01-02") == etLocal.Format("2006-01-02") {
+					timeRange = fmt.Sprintf("%s–%s", stLocal.Format("15:04"), etLocal.Format("15:04"))
+				} else {
+					timeRange = fmt.Sprintf("%s–%s", stLocal.Format("Jan 02 15:04"), etLocal.Format("Jan 02 15:04"))
+				}
 			}
 		}
 	}
 
 	// Create file with header if new
 	if _, err := os.Stat(journalFile); os.IsNotExist(err) {
-		if err := os.WriteFile(journalFile, []byte(fmt.Sprintf("# Claude Code Journal — %s\n\n", today)), 0o644); err != nil {
+		if err := os.WriteFile(journalFile, []byte(fmt.Sprintf("# Claude Code Journal — %s\n\n", journalDate)), 0o644); err != nil {
 			return fmt.Errorf("creating journal file: %w", err)
 		}
 	}
