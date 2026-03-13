@@ -29,6 +29,12 @@ cc-journal summarize $ARGUMENTS
 
 If no session ID is provided as an argument, it will find the most recent session for the current working directory.
 
+If the command reports the session is already journaled, ask the user if they want to replace the existing summary. If they confirm, re-run with --force:
+
+` + "```" + `
+cc-journal summarize $ARGUMENTS --force
+` + "```" + `
+
 After running, show the user the output. If the command succeeds, let them know the summary was written to their journal.
 `,
 }
