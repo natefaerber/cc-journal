@@ -165,7 +165,11 @@ window.addEventListener('DOMContentLoaded', function() {
     var prev = det.previousElementSibling;
     while (prev) {
       if (prev.tagName === 'H2') { h2 = prev; break; }
-      if (prev.tagName === 'DETAILS') break;
+      // Stop at another session's details (one that has a session ID), but skip non-session details like Links
+      if (prev.tagName === 'DETAILS') {
+        var hasId = Array.from(prev.querySelectorAll('code')).some(function(c) { return /^[a-f0-9-]+$/.test(c.textContent.trim()); });
+        if (hasId) break;
+      }
       prev = prev.previousElementSibling;
     }
     if (!h2) return;
