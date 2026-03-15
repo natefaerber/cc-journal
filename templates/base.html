@@ -36,6 +36,7 @@
       <div class="flex gap-6">
         <a href="/" class="text-xs font-sans font-medium text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider">Dashboard</a>
         <a href="/daily" class="text-xs font-sans font-medium text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider">Daily</a>
+        <a href="/projects" class="text-xs font-sans font-medium text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider">Projects</a>
         <a href="/standup" class="text-xs font-sans font-medium text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider">Standup</a>
         <a href="/weekly" class="text-xs font-sans font-medium text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider">Weekly</a>
         <button onclick="openPalette()" class="text-xs font-sans text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 ml-2" title="Command palette (Cmd+K)">
@@ -70,6 +71,10 @@
               <div class="flex justify-between"><span class="text-foreground/80">Previous page</span><kbd class="sc-key">p</kbd></div>
               <div class="flex justify-between"><span class="text-foreground/80">Next page</span><kbd class="sc-key">n</kbd></div>
               <div class="flex justify-between"><span class="text-foreground/80">Go to dashboard</span><span><kbd class="sc-key">g</kbd> <kbd class="sc-key">i</kbd></span></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Go to projects</span><span><kbd class="sc-key">g</kbd> <kbd class="sc-key">p</kbd></span></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Go to daily</span><span><kbd class="sc-key">g</kbd> <kbd class="sc-key">d</kbd></span></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Go to standup</span><span><kbd class="sc-key">g</kbd> <kbd class="sc-key">s</kbd></span></div>
+              <div class="flex justify-between"><span class="text-foreground/80">Go to weekly</span><span><kbd class="sc-key">g</kbd> <kbd class="sc-key">w</kbd></span></div>
               <div class="flex justify-between"><span class="text-foreground/80">Back</span><kbd class="sc-key">h</kbd></div>
               <div class="flex justify-between"><span class="text-foreground/80">Forward</span><kbd class="sc-key">l</kbd></div>
               <div class="flex justify-between"><span class="text-foreground/80">Scroll to top</span><kbd class="sc-key">g</kbd></div>
@@ -533,7 +538,7 @@
       if (next) { next.click(); return; }
     }
 
-    // gi: go to dashboard (index)
+    // g chords: gi=dashboard, gp=projects, gd=daily, gs=standup, gw=weekly
     if (e.key === 'g' && !window._gPressed) {
       window._gPressed = true;
       window._gTimer = setTimeout(function() {
@@ -543,11 +548,11 @@
       }, 300);
       return;
     }
-    if (e.key === 'i' && window._gPressed) {
+    if (window._gPressed) {
       clearTimeout(window._gTimer);
       window._gPressed = false;
-      window.location.href = '/';
-      return;
+      var gTargets = {i:'/', p:'/projects', d:'/daily', s:'/standup', w:'/weekly'};
+      if (gTargets[e.key]) { window.location.href = gTargets[e.key]; return; }
     }
 
     if (e.key === 'h') { history.back(); }
