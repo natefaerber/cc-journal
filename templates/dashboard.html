@@ -73,14 +73,20 @@
   </div>
 </div>
 
-<!-- Projects -->
-<h2 class="text-lg font-semibold mb-3 tracking-tight">Projects</h2>
+<!-- Projects (last 3 days) -->
+<div class="flex items-center gap-3 mb-3">
+  <h2 class="text-lg font-semibold tracking-tight">Projects</h2>
+  <a href="/projects" class="text-xs font-sans text-muted-foreground hover:text-accent transition-colors no-underline">View all {{len .Dashboard.Projects}} &rarr;</a>
+</div>
 <div class="flex flex-wrap gap-2 mb-8">
-  {{range .Dashboard.Projects}}
+  {{range .Dashboard.RecentProjects}}
   <a href="/project/{{.Name}}" class="inline-flex items-center gap-2 bg-card border border-border rounded-md px-3 py-1.5 text-xs font-mono shadow-sm hover:shadow-md hover:border-accent transition-all no-underline text-foreground">
     {{.Name}}
     <span class="bg-accent text-accent-foreground px-1.5 py-0.5 rounded text-[0.6rem] font-bold font-sans">{{.Count}}</span>
   </a>
+  {{end}}
+  {{if not .Dashboard.RecentProjects}}
+  <span class="text-sm text-muted-foreground font-sans">No sessions in the last 3 days.</span>
   {{end}}
 </div>
 

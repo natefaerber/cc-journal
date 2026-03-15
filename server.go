@@ -188,6 +188,7 @@ type PageData struct {
 	ReportHTML     template.HTML
 	ProjectName    string
 	Entries        []Entry
+	ProjectsList   []ProjectCount
 	PrevDate       string
 	NextDate       string
 	PrevURL        string // previous report URL for nav
@@ -486,6 +487,20 @@ func serve(port int, templatesDir string) {
 				NextDate: nextDate,
 			}
 			out, err := renderPage("daily-entry.html", templatesDir, page)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write(out)
+
+		case path == "projects" || path == "projects/":
+			page := PageData{
+				Title:        "All Projects",
+				ProjectsList: data.Projects,
+				Dates:        getDates(data),
+			}
+			out, err := renderPage("projects.html", templatesDir, page)
 			if err != nil {
 				http.Error(w, err.Error(), 500)
 				return

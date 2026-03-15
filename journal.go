@@ -25,8 +25,9 @@ type Entry struct {
 }
 
 type ProjectCount struct {
-	Name  string
-	Count int
+	Name     string
+	Count    int
+	LastDate string // most recent session date
 }
 
 type Stats struct {
@@ -59,11 +60,12 @@ type HeatmapDay struct {
 }
 
 type DashboardData struct {
-	Stats    Stats
-	Projects []ProjectCount
-	Bars     []Bar
-	Heatmap  []HeatmapDay
-	Recent   []Entry
+	Stats          Stats
+	RecentProjects []ProjectCount // last 3 days
+	Projects       []ProjectCount // all time
+	Bars           []Bar
+	Heatmap        []HeatmapDay
+	Recent         []Entry
 }
 
 type JournalData struct {
@@ -192,10 +194,18 @@ func parseJournalFiles() JournalData {
 		}
 	}
 
+	// Track last active date per project
+	projectLastDate := make(map[string]string)
+	for _, e := range allEntries {
+		if e.Date > projectLastDate[e.Project] {
+			projectLastDate[e.Project] = e.Date
+		}
+	}
+
 	// Sort projects by count descending
 	projects := make([]ProjectCount, 0, len(projectCounts))
 	for name, count := range projectCounts {
-		projects = append(projects, ProjectCount{name, count})
+		projects = append(projects, ProjectCount{Name: name, Count: count, LastDate: projectLastDate[name]})
 	}
 	sort.Slice(projects, func(i, j int) bool {
 		return projects[i].Count > projects[j].Count
@@ -373,12 +383,29 @@ func buildDashboard(data JournalData) DashboardData {
 		recent = recent[:15]
 	}
 
+	// Projects from last 3 days for dashboard
+	cutoff := time.Now().AddDate(0, 0, -3).Format("2006-01-02")
+	recentProjCounts := make(map[string]int)
+	for _, e := range data.Entries {
+		if e.Date >= cutoff {
+			recentProjCounts[e.Project]++
+		}
+	}
+	var recentProjects []ProjectCount
+	for name, count := range recentProjCounts {
+		recentProjects = append(recentProjects, ProjectCount{Name: name, Count: count})
+	}
+	sort.Slice(recentProjects, func(i, j int) bool {
+		return recentProjects[i].Count > recentProjects[j].Count
+	})
+
 	return DashboardData{
-		Stats:    stats,
-		Projects: data.Projects,
-		Bars:     bars,
-		Heatmap:  heatmap,
-		Recent:   recent,
+		Stats:          stats,
+		RecentProjects: recentProjects,
+		Projects:       data.Projects,
+		Bars:           bars,
+		Heatmap:        heatmap,
+		Recent:         recent,
 	}
 }
 
