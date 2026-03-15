@@ -4,7 +4,15 @@
 </div>
 
 <h1 class="text-2xl font-bold mb-1 tracking-tight">All Projects</h1>
-<p class="text-sm text-muted-foreground font-sans mb-6">{{len .ProjectsList}} projects</p>
+<div class="flex items-center gap-3 mb-6">
+  <p class="text-sm text-muted-foreground font-sans">{{len .ProjectsList}} projects</p>
+  <div class="flex-1 max-w-xs">
+    <input id="project-filter" type="text" placeholder="Filter projects…"
+      class="w-full bg-muted/50 border border-border rounded-md px-3 py-1.5 text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors"
+      autocomplete="off" spellcheck="false">
+  </div>
+  <p id="filter-count" class="text-sm text-muted-foreground font-sans hidden"></p>
+</div>
 
 <div class="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
   <table class="w-full text-sm font-sans">
@@ -33,25 +41,61 @@
 
 <script>
 (function() {
-  var rows = document.querySelectorAll('tbody tr');
+  var allRows = Array.from(document.querySelectorAll('tbody tr'));
+  var input = document.getElementById('project-filter');
+  var countEl = document.getElementById('filter-count');
+  var visible = allRows;
   var idx = -1;
-  function focus(i) {
-    if (i < 0 || i >= rows.length) return;
-    if (idx >= 0) rows[idx].classList.remove('bg-accent/10');
-    idx = i;
-    rows[idx].classList.add('bg-accent/10');
-    rows[idx].scrollIntoView({block: 'nearest'});
+
+  function filterRows() {
+    var q = input.value.toLowerCase();
+    idx = -1;
+    visible = [];
+    allRows.forEach(function(row) {
+      var name = row.querySelector('a').textContent.toLowerCase();
+      var show = !q || name.indexOf(q) !== -1;
+      row.style.display = show ? '' : 'none';
+      row.classList.remove('bg-accent/10');
+      if (show) visible.push(row);
+    });
+    if (q) {
+      countEl.textContent = visible.length + ' match' + (visible.length !== 1 ? 'es' : '');
+      countEl.classList.remove('hidden');
+    } else {
+      countEl.classList.add('hidden');
+    }
   }
+
+  input.addEventListener('input', filterRows);
+
+  function focus(i) {
+    if (i < 0 || i >= visible.length) return;
+    if (idx >= 0 && idx < visible.length) visible[idx].classList.remove('bg-accent/10');
+    idx = i;
+    visible[idx].classList.add('bg-accent/10');
+    visible[idx].scrollIntoView({block: 'nearest'});
+  }
+
   document.addEventListener('keydown', function(e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.metaKey || e.ctrlKey) return;
+    // / focuses the filter input
+    if (e.key === '/' && e.target !== input) {
+      e.preventDefault();
+      input.focus();
+      return;
+    }
+    if (e.target === input) {
+      if (e.key === 'Escape') { input.blur(); input.value = ''; filterRows(); return; }
+      if (e.key === 'Enter' && visible.length === 1) { var a = visible[0].querySelector('a'); if (a) a.click(); return; }
+      return;
+    }
     if (e.key === 'j') { e.preventDefault(); focus(idx + 1); }
     else if (e.key === 'k') { e.preventDefault(); focus(idx - 1); }
     else if ((e.key === 'Enter' || e.key === 'o') && idx >= 0) {
-      var link = rows[idx].querySelector('a');
+      var link = visible[idx].querySelector('a');
       if (link) link.click();
     }
-    else if (e.key === 'Escape' && idx >= 0) { rows[idx].classList.remove('bg-accent/10'); idx = -1; }
+    else if (e.key === 'Escape' && idx >= 0) { visible[idx].classList.remove('bg-accent/10'); idx = -1; }
   });
 })();
 </script>
