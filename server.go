@@ -321,6 +321,7 @@ func serve(port int, templatesDir string) {
 		items = append(items,
 			PaletteItem{"page", "Dashboard", "Overview and stats", "/"},
 			PaletteItem{"page", "Daily Entries", "Browse by date", "/daily"},
+			PaletteItem{"page", "Projects", "All projects", "/projects"},
 			PaletteItem{"page", "Standup", "Today's standup report", "/standup"},
 			PaletteItem{"page", "Weekly", "Weekly status report", "/weekly"},
 		)
