@@ -29,6 +29,10 @@ type LinksConfig struct {
 	// GitHub repos for linking PR references found in transcripts.
 	// First repo is used for ambiguous "PR #N" references.
 	GitHubRepos []string `yaml:"github_repos"`
+
+	// GitHubDiscover auto-detects GitHub org/repo from session context
+	// to resolve bare "PR #N" references without explicit repo config.
+	GitHubDiscover bool `yaml:"github_discover"`
 }
 
 // Config holds all cc-journal configuration.
