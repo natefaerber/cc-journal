@@ -55,7 +55,7 @@
     <h3 class="text-[0.6rem] uppercase tracking-widest text-muted-foreground font-sans font-semibold mb-4">Heatmap</h3>
     <div class="grid grid-cols-7 gap-[3px]">
       {{range .Dashboard.Heatmap}}
-      <div class="h-3.5 rounded-sm {{if eq .Level 0}}bg-muted{{end}} {{if eq .Level 1}}bg-blue-100{{end}} {{if eq .Level 2}}bg-blue-300{{end}} {{if eq .Level 3}}bg-blue-500{{end}} {{if eq .Level 4}}bg-accent{{end}}"
+      <div class="h-3.5 rounded-sm {{if eq .Level 0}}bg-muted{{end}} {{if eq .Level 1}}bg-activity-1{{end}} {{if eq .Level 2}}bg-activity-2{{end}} {{if eq .Level 3}}bg-activity-3{{end}} {{if eq .Level 4}}bg-activity-4{{end}}"
            {{if .IsFuture}}style="opacity:0.3"{{end}}
            title="{{.Date}}: {{.Count}} sessions">
       </div>
@@ -64,10 +64,10 @@
     <div class="flex items-center gap-1 mt-3 text-[0.55rem] font-sans text-muted-foreground">
       <span>Less</span>
       <div class="h-2.5 w-2.5 rounded-sm bg-muted"></div>
-      <div class="h-2.5 w-2.5 rounded-sm bg-blue-100"></div>
-      <div class="h-2.5 w-2.5 rounded-sm bg-blue-300"></div>
-      <div class="h-2.5 w-2.5 rounded-sm bg-blue-500"></div>
-      <div class="h-2.5 w-2.5 rounded-sm bg-accent"></div>
+      <div class="h-2.5 w-2.5 rounded-sm bg-activity-1"></div>
+      <div class="h-2.5 w-2.5 rounded-sm bg-activity-2"></div>
+      <div class="h-2.5 w-2.5 rounded-sm bg-activity-3"></div>
+      <div class="h-2.5 w-2.5 rounded-sm bg-activity-4"></div>
       <span>More</span>
     </div>
   </div>

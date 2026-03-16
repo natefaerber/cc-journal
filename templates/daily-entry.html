@@ -16,7 +16,7 @@
   .session-focused {
     scroll-margin-top: 5rem;
     border-color: var(--color-accent) !important;
-    background: rgba(37, 99, 235, 0.03);
+    background: color-mix(in srgb, var(--color-accent) 3%, transparent);
   }
   .permalink-icon {
     opacity: 0;
@@ -72,15 +72,15 @@
   }
   .session-actions .action-resume:hover {
     border-color: var(--color-accent);
-    background: rgba(37, 99, 235, 0.1);
+    background: color-mix(in srgb, var(--color-accent) 10%, transparent);
   }
   .session-actions .action-delete {
     color: var(--color-muted-foreground);
   }
   .session-actions .action-delete:hover {
-    color: #ef4444;
-    border-color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
   }
   .shortcut-hint {
     font-size: 0.55rem;

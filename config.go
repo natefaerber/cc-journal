@@ -38,6 +38,7 @@ type Config struct {
 	Exclude    []string    `yaml:"exclude"`
 	Model      string      `yaml:"model"`
 	APIKey     string      `yaml:"api_key"`
+	Theme      string      `yaml:"theme"`      // theme name: "warm" (default), "dark", or custom
 	WeekStart  string      `yaml:"week_start"` // "monday" (default) or "sunday"
 	Slack      SlackConfig `yaml:"slack"`
 	Links      LinksConfig `yaml:"links"`

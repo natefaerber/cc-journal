@@ -19,6 +19,9 @@ var (
 
 func main() {
 	cfg = loadConfig()
+	if t, err := loadTheme(cfg.Theme); err == nil {
+		currentTheme = t
+	}
 
 	app := &cli.Command{
 		Name:    "cc-journal",
@@ -34,8 +37,16 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.IntFlag{Name: "port", Value: 8000, Usage: "port to listen on"},
 					&cli.StringFlag{Name: "templates", Usage: "custom templates directory"},
+					&cli.StringFlag{Name: "theme", Usage: "theme name (overrides config)"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
+					if t := cmd.String("theme"); t != "" {
+						if theme, err := loadTheme(t); err == nil {
+							currentTheme = theme
+						} else {
+							return err
+						}
+					}
 					serve(int(cmd.Int("port")), cmd.String("templates"))
 					return nil
 				},
@@ -47,8 +58,16 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "out", Value: "public", Usage: "output directory"},
 					&cli.StringFlag{Name: "templates", Usage: "custom templates directory"},
+					&cli.StringFlag{Name: "theme", Usage: "theme name (overrides config)"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
+					if t := cmd.String("theme"); t != "" {
+						if theme, err := loadTheme(t); err == nil {
+							currentTheme = theme
+						} else {
+							return err
+						}
+					}
 					build(cmd.String("out"), cmd.String("templates"))
 					return nil
 				},
@@ -287,12 +306,34 @@ func main() {
 					&cli.BoolFlag{Name: "templates", Usage: "export HTML templates only"},
 					&cli.BoolFlag{Name: "prompts", Usage: "export prompt templates only"},
 					&cli.BoolFlag{Name: "commands", Usage: "install Claude Code slash commands"},
-					&cli.BoolFlag{Name: "all", Usage: "export templates, prompts, and commands"},
+					&cli.BoolFlag{Name: "themes", Usage: "export theme YAML files for customization"},
+					&cli.BoolFlag{Name: "config", Usage: "generate default config.yaml"},
+					&cli.BoolFlag{Name: "all", Usage: "export templates, prompts, commands, and themes"},
 					&cli.BoolFlag{Name: "force", Usage: "overwrite existing files"},
 					&cli.BoolFlag{Name: "stdout", Usage: "print to stdout instead of writing files"},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					runInitCLI(cmd)
+					return nil
+				},
+			},
+
+			{
+				Name:     "themes",
+				Usage:    "List available themes",
+				Category: "Setup",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					active := cfg.Theme
+					if active == "" {
+						active = "warm"
+					}
+					for _, name := range listThemes() {
+						marker := "  "
+						if name == active {
+							marker = "* "
+						}
+						fmt.Printf("%s%s\n", marker, name)
+					}
 					return nil
 				},
 			},

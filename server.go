@@ -26,7 +26,12 @@ import (
 var embeddedTemplates embed.FS
 
 var funcMap = template.FuncMap{
-	"sub": func(a, b int) int { return a - b },
+	"themeCSS":      func() template.CSS { return currentTheme.CSS() },
+	"themeFontURL":  func() string { return currentTheme.Fonts.GoogleURL },
+	"themeBodyFont": func() string { return currentTheme.Fonts.Body },
+	"themeSansFont": func() string { return currentTheme.Fonts.Sans },
+	"themeMonoFont": func() string { return currentTheme.Fonts.Mono },
+	"sub":           func(a, b int) int { return a - b },
 	"formatTokens": func(n int64) string {
 		if n >= 1_000_000 {
 			return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
@@ -636,6 +641,10 @@ func serve(port int, templatesDir string) {
 	go func() {
 		for range sighup {
 			cfg = loadConfig()
+			if t, err := loadTheme(cfg.Theme); err == nil {
+				currentTheme = t
+				fmt.Printf("Theme reloaded: %s\n", currentTheme.Name)
+			}
 			fmt.Println("Config reloaded (SIGHUP)")
 		}
 	}()

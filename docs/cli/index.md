@@ -7,8 +7,8 @@
 
 ## Subcommands
 
-- [`cc-journal serve [--port <PORT>] [--templates <DIR>]`](/serve.md)
-- [`cc-journal build [--out <DIR>] [--templates <DIR>]`](/build.md)
+- [`cc-journal serve [FLAGS]`](/serve.md)
+- [`cc-journal build [FLAGS]`](/build.md)
 - [`cc-journal standup [--copy] [--slack [CHANNEL]] [DATE]`](/standup.md)
 - [`cc-journal weekly [FLAGS] [START]`](/weekly.md)
 - [`cc-journal hook`](/hook.md)
@@ -21,6 +21,7 @@
 - [`cc-journal rollup [DATE]`](/rollup.md)
 - [`cc-journal prune [--dry-run]`](/prune.md)
 - [`cc-journal remove <SESSION_ID>`](/remove.md)
+- [`cc-journal themes`](/themes.md)
 - [`cc-journal init [FLAGS]`](/init.md)
 - [`cc-journal search [--project <PROJECT>] [--limit <N>] <QUERY>…`](/search.md)
 - [`cc-journal version`](/version.md)

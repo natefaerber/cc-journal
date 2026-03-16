@@ -10,6 +10,9 @@ cmd serve help="Start dev server with live reload (send SIGHUP to reload config)
     flag "--templates" help="Directory with custom HTML templates" {
         arg <DIR>
     }
+    flag "--theme" help="Theme name (overrides config)" {
+        arg <NAME>
+    }
 }
 
 cmd build help="Generate static HTML site" {
@@ -18,6 +21,9 @@ cmd build help="Generate static HTML site" {
     }
     flag "--templates" help="Directory with custom HTML templates" {
         arg <DIR>
+    }
+    flag "--theme" help="Theme name (overrides config)" {
+        arg <NAME>
     }
 }
 
@@ -87,11 +93,15 @@ cmd remove help="Delete a journal entry and deny future backfills for this sessi
     arg "<SESSION_ID>" help="Session ID to remove"
 }
 
-cmd init help="Export default templates, prompts, and Claude Code commands" {
+cmd themes help="List available themes (active theme marked with *)"
+
+cmd init help="Export default templates, prompts, commands, and themes" {
     flag "--templates" help="Export HTML templates only"
     flag "--prompts" help="Export prompt templates only"
     flag "--commands" help="Install Claude Code slash commands (e.g. /summarize)"
-    flag "--all" help="Export templates, prompts, and commands"
+    flag "--themes" help="Export theme YAML files for customization"
+    flag "--config" help="Generate default config.yaml"
+    flag "--all" help="Export templates, prompts, commands, and themes"
     flag "--force" help="Overwrite existing files"
     flag "--stdout" help="Print to stdout instead of writing files"
 }
