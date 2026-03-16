@@ -26,12 +26,8 @@ type LinksConfig struct {
 	// Confluence base URL for auto-linking Confluence pages found in transcripts.
 	Confluence string `yaml:"confluence"`
 
-	// GitHub repos for linking PR references found in transcripts.
-	// First repo is used for ambiguous "PR #N" references.
-	GitHubRepos []string `yaml:"github_repos"`
-
 	// GitHubDiscover auto-detects GitHub org/repo from session context
-	// to resolve bare "PR #N" references without explicit repo config.
+	// to resolve bare "PR #N" references.
 	GitHubDiscover bool `yaml:"github_discover"`
 }
 

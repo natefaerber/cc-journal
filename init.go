@@ -76,8 +76,6 @@ const defaultConfigYAML = `# cc-journal configuration
 #     LPE: https://linear.app/your-org/issue
 #   confluence: https://your-org.atlassian.net/wiki
 #   github_discover: true  # auto-detect repo from session context for bare "PR #N" links
-#   github_repos:
-#     - https://github.com/your-org/your-repo  # explicit fallback for "PR #N" links
 `
 
 func runInitCLI(cmd *cli.Command) {

@@ -180,22 +180,20 @@ func autoLinkIssueKeys(html string) string {
 	return result
 }
 
-// autoLinkPRs replaces "PR #N" patterns with GitHub links.
-// Uses configured repos first, then falls back to discovery from existing links in the HTML.
+// autoLinkPRs replaces "PR #N" patterns with GitHub links when discovery is enabled.
+// Discovers the repo from GitHub PR/issue URLs already present in the HTML.
 func autoLinkPRs(html string) string {
-	var baseRepo string
-
-	if len(cfg.Links.GitHubRepos) > 0 {
-		baseRepo = cfg.Links.GitHubRepos[0]
-	} else if cfg.Links.GitHubDiscover {
-		// Discover repo from GitHub PR/issue URLs already in the HTML
-		if m := githubPRRe.FindStringSubmatch(html); m != nil {
-			baseRepo = "https://github.com/" + m[1]
-		} else if m := githubIssueRe.FindStringSubmatch(html); m != nil {
-			baseRepo = "https://github.com/" + m[1]
-		}
+	if !cfg.Links.GitHubDiscover {
+		return html
 	}
 
+	// Discover repo from GitHub URLs already in the HTML
+	var baseRepo string
+	if m := githubPRRe.FindStringSubmatch(html); m != nil {
+		baseRepo = "https://github.com/" + m[1]
+	} else if m := githubIssueRe.FindStringSubmatch(html); m != nil {
+		baseRepo = "https://github.com/" + m[1]
+	}
 	if baseRepo == "" {
 		return html
 	}
