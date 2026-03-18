@@ -167,9 +167,9 @@ func generateRollup(targetDate string) {
 		os.Exit(1)
 	}
 
-	// Save to file
+	// Save rollup to the default journal dir (rollups aggregate across all profiles)
 	_, week := monday.ISOWeek()
-	rollupFile := filepath.Join(journalDir(), fmt.Sprintf("%d-W%02d-rollup.md", monday.Year(), week))
+	rollupFile := filepath.Join(cfg.JournalDir, fmt.Sprintf("%d-W%02d-rollup.md", monday.Year(), week))
 	if err := os.WriteFile(rollupFile, []byte(summary+"\n"), 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to write rollup: %v\n", err)
 		os.Exit(1)

@@ -709,7 +709,14 @@ func summarizeSession(sessionID string, force bool) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("✓ Summary written to ~/claude-journal/%s.md\n", time.Now().Format("2006-01-02"))
+	targetDir := resolveJournalDir(meta.CWD)
+	journalDate := time.Now().Format("2006-01-02")
+	if meta.LastTime != "" {
+		if t, err := time.Parse(time.RFC3339Nano, meta.LastTime); err == nil {
+			journalDate = t.Local().Format("2006-01-02")
+		}
+	}
+	fmt.Printf("✓ Summary written to %s/%s.md\n", targetDir, journalDate)
 	fmt.Println()
 	fmt.Println(summary)
 }

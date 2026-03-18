@@ -84,10 +84,6 @@ var (
 	linkRe      = regexp.MustCompile(`- \[(.+?)\]\((.+?)\)`)
 )
 
-func journalDir() string {
-	return cfg.JournalDir
-}
-
 // readDateFromAllDirs reads and concatenates a date's journal file from all journal dirs.
 // Returns nil if no file was found in any directory.
 func readDateFromAllDirs(date string) []byte {

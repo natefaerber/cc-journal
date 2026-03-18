@@ -10,11 +10,6 @@ import (
 
 const denyFile = ".denied"
 
-// denyPath returns the path to the deny list file in the default journal dir.
-func denyPath() string {
-	return filepath.Join(journalDir(), denyFile)
-}
-
 // loadDenied reads deny lists from all journal directories.
 func loadDenied() map[string]bool {
 	ids := make(map[string]bool)
@@ -39,13 +34,19 @@ func isDenied(sessionID string) bool {
 	return loadDenied()[sessionID]
 }
 
-// addToDenyList appends a session ID to the deny list in the default journal dir.
-func addToDenyList(sessionID string) error {
+// addToDenyList appends a session ID to the deny list.
+// If cwd is provided, the deny entry is written to the matching profile's journal dir;
+// otherwise it falls back to the default journal dir.
+func addToDenyList(sessionID string, cwd ...string) error {
 	if isDenied(sessionID) {
 		return nil
 	}
 
-	dp := denyPath()
+	dir := cfg.JournalDir
+	if len(cwd) > 0 && cwd[0] != "" {
+		dir = resolveJournalDir(cwd[0])
+	}
+	dp := filepath.Join(dir, denyFile)
 	// Create file with header if new
 	if _, err := os.Stat(dp); os.IsNotExist(err) {
 		header := "# Session IDs excluded from backfill and hook processing.\n# Remove a line to allow re-summarization.\n\n"
@@ -199,5 +200,5 @@ func runRemove(sessionID string) {
 		fmt.Fprintf(os.Stderr, "Failed to update deny list: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("Added to %s (excluded from future backfills).\n", denyPath())
+	fmt.Println("Added to deny list (excluded from future backfills).")
 }
