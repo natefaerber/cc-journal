@@ -19,3 +19,12 @@ dist/
 
 # Playwright
 .playwright-mcp/
+
+# Serena
+.serena/
+
+# Worktrees
+.worktrees/
+
+# Local config
+fnox.local.toml
