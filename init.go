@@ -65,6 +65,18 @@ const defaultConfigYAML = `# cc-journal configuration
 # Custom prompt templates directory
 # prompt_dir: ~/.config/cc-journal/prompts
 
+# Directory-based profiles — route sessions to different journals by cwd prefix.
+# First matching profile wins. Sessions not matching any profile use journal_dir above.
+# profiles:
+#   - match: ~/_Work/
+#     journal_dir: ~/claude-journal/work
+#     links:
+#       issues:
+#         PROJ: https://linear.app/your-org/issue
+#       github_discover: true
+#   - match: ~/personal/
+#     journal_dir: ~/claude-journal/personal
+
 # Slack integration
 # slack:
 #   command: slack-send

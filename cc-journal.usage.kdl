@@ -65,13 +65,22 @@ cmd backfill help="Retroactively summarize recent sessions" {
     flag "--force" help="Re-summarize sessions even if already journaled"
 }
 
-cmd today help="Print today's journal entries"
+cmd today help="Print today's journal entries" {
+    flag "--json" help="Output as JSON"
+}
 
 cmd show help="Print a specific date's journal entries" {
     arg "<DATE>" help="Date to show (YYYY-MM-DD)"
+    flag "--json" help="Output as JSON"
 }
 
-cmd list help="List all journal files"
+cmd list help="List all journal files" {
+    flag "--json" help="Output as JSON"
+}
+
+cmd stats help="Show journal statistics" {
+    flag "--json" help="Output as JSON"
+}
 
 cmd week help="Print this week's entries or generate rollup" {
     arg "[DATE]" help="Date within the target week (YYYY-MM-DD)" required=#false

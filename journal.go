@@ -12,44 +12,44 @@ import (
 )
 
 type Entry struct {
-	Date         string
-	Project      string
-	Branch       string
-	TimeRange    string
-	SessionID    string
-	Cwd          string
-	Summary      string
-	HasAISummary bool
-	Links        []ExternalLink
-	Tokens       TokenUsage
+	Date         string         `json:"date"`
+	Project      string         `json:"project"`
+	Branch       string         `json:"branch"`
+	TimeRange    string         `json:"time_range"`
+	SessionID    string         `json:"session_id"`
+	Cwd          string         `json:"cwd"`
+	Summary      string         `json:"summary"`
+	HasAISummary bool           `json:"has_ai_summary"`
+	Links        []ExternalLink `json:"links,omitempty"`
+	Tokens       TokenUsage     `json:"tokens,omitempty"`
 }
 
 type ProjectCount struct {
-	Name     string
-	Count    int
-	LastDate string // most recent session date
+	Name     string `json:"name"`
+	Count    int    `json:"count"`
+	LastDate string `json:"last_date"`
 }
 
 type Stats struct {
-	TotalSessions       int
-	TotalDays           int
-	TotalProjects       int
-	ThisWeek            int
-	Streak              int
-	MostActive          string
-	WeekStartLabel      string
-	SessionInputTokens  int64 // input + cache_create + cache_read
-	SessionOutputTokens int64
-	SummaryInputTokens  int64
-	SummaryOutputTokens int64
+	TotalSessions       int    `json:"total_sessions"`
+	TotalDays           int    `json:"total_days"`
+	TotalProjects       int    `json:"total_projects"`
+	ThisWeek            int    `json:"this_week"`
+	Streak              int    `json:"streak"`
+	MostActive          string `json:"most_active"`
+	WeekStartLabel      string `json:"week_start_label"`
+	SessionInputTokens  int64  `json:"session_input_tokens"`
+	SessionOutputTokens int64  `json:"session_output_tokens"`
+	SummaryInputTokens  int64  `json:"summary_input_tokens"`
+	SummaryOutputTokens int64  `json:"summary_output_tokens"`
 }
 
 type Bar struct {
-	Date      string
-	Count     int
-	HeightPct float64
-	ShowLabel bool
-	Label     string
+	Date      string  `json:"date"`
+	Count     int     `json:"count"`
+	HeightPct float64 `json:"height_pct"`
+	ShowLabel bool    `json:"show_label"`
+	Label     string  `json:"label"`
 }
 
 type HeatmapDay struct {
@@ -84,23 +84,35 @@ var (
 	linkRe      = regexp.MustCompile(`- \[(.+?)\]\((.+?)\)`)
 )
 
-func journalDir() string {
-	return cfg.JournalDir
+// readDateFromAllDirs reads and concatenates a date's journal file from all journal dirs.
+// Returns nil if no file was found in any directory.
+func readDateFromAllDirs(date string) []byte {
+	var combined []byte
+	for _, dir := range allJournalDirs() {
+		content, err := os.ReadFile(filepath.Join(dir, date+".md"))
+		if err != nil {
+			continue
+		}
+		combined = append(combined, content...)
+	}
+	if len(combined) == 0 {
+		return nil
+	}
+	return combined
 }
 
-func parseJournalFiles() JournalData {
-	dir := journalDir()
-	entries, err := os.ReadDir(dir)
+// parseJournalDir parses journal entries from a single directory.
+func parseJournalDir(dir string) ([]Entry, []string) {
+	dirEntries, err := os.ReadDir(dir)
 	if err != nil {
-		return JournalData{}
+		return nil, nil
 	}
 
 	var allEntries []Entry
 	var dailyFiles []string
-	projectCounts := make(map[string]int)
 
 	files := make([]string, 0)
-	for _, e := range entries {
+	for _, e := range dirEntries {
 		if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") && !strings.Contains(e.Name(), "rollup") {
 			files = append(files, e.Name())
 		}
@@ -190,9 +202,36 @@ func parseJournalFiles() JournalData {
 				Links:        links,
 				Tokens:       tokens,
 			})
-			projectCounts[project]++
 		}
 	}
+
+	return allEntries, dailyFiles
+}
+
+// parseJournalFiles aggregates entries from all journal directories (default + profiles).
+func parseJournalFiles() JournalData {
+	var allEntries []Entry
+	dailyFileSet := make(map[string]bool)
+	projectCounts := make(map[string]int)
+
+	for _, dir := range allJournalDirs() {
+		entries, dailyFiles := parseJournalDir(dir)
+		allEntries = append(allEntries, entries...)
+		for _, f := range dailyFiles {
+			dailyFileSet[f] = true
+		}
+	}
+
+	for _, e := range allEntries {
+		projectCounts[e.Project]++
+	}
+
+	// Deduplicate and sort daily files
+	var dailyFiles []string
+	for f := range dailyFileSet {
+		dailyFiles = append(dailyFiles, f)
+	}
+	sort.Strings(dailyFiles)
 
 	// Track last active date per project
 	projectLastDate := make(map[string]string)

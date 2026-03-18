@@ -24,12 +24,12 @@ const (
 
 // TokenUsage tracks token consumption for a session and its summarization.
 type TokenUsage struct {
-	InputTokens              int64
-	OutputTokens             int64
-	CacheCreationInputTokens int64
-	CacheReadInputTokens     int64
-	SummaryInputTokens       int64
-	SummaryOutputTokens      int64
+	InputTokens              int64 `json:"input_tokens"`
+	OutputTokens             int64 `json:"output_tokens"`
+	CacheCreationInputTokens int64 `json:"cache_creation_input_tokens"`
+	CacheReadInputTokens     int64 `json:"cache_read_input_tokens"`
+	SummaryInputTokens       int64 `json:"summary_input_tokens"`
+	SummaryOutputTokens      int64 `json:"summary_output_tokens"`
 }
 
 // SessionTokens returns total tokens from the Claude Code session (excluding summarizer).
@@ -528,8 +528,9 @@ func callAnthropicAPIRaw(apiKey, prompt string, maxTokens int) (string, error) {
 }
 
 // appendToJournal writes a session summary to the journal file.
+// The target directory is resolved from the session's cwd via profiles.
 func appendToJournal(meta *sessionMeta, summary string) error {
-	dir := journalDir()
+	dir := resolveJournalDir(meta.CWD)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("creating journal dir: %w", err)
 	}
@@ -606,26 +607,28 @@ func appendToJournal(meta *sessionMeta, summary string) error {
 }
 
 // isSessionJournaled checks if a session ID already has a successful summary.
+// Searches across all journal directories (default + profiles).
 func isSessionJournaled(sessionID string) bool {
-	dir := journalDir()
-	files, _ := filepath.Glob(filepath.Join(dir, "*.md"))
 	idPattern := regexp.MustCompile(`<code>` + regexp.QuoteMeta(sessionID) + `</code>`)
 	failPattern := regexp.MustCompile(`Summary generation failed`)
 
-	for _, f := range files {
-		content, err := os.ReadFile(f)
-		if err != nil {
-			continue
-		}
-		matches := idPattern.FindAllIndex(content, -1)
-		for _, m := range matches {
-			start := m[0] - 500
-			if start < 0 {
-				start = 0
+	for _, dir := range allJournalDirs() {
+		files, _ := filepath.Glob(filepath.Join(dir, "*.md"))
+		for _, f := range files {
+			content, err := os.ReadFile(f)
+			if err != nil {
+				continue
 			}
-			section := content[start:m[0]]
-			if !failPattern.Match(section) {
-				return true
+			matches := idPattern.FindAllIndex(content, -1)
+			for _, m := range matches {
+				start := m[0] - 500
+				if start < 0 {
+					start = 0
+				}
+				section := content[start:m[0]]
+				if !failPattern.Match(section) {
+					return true
+				}
 			}
 		}
 	}
@@ -706,7 +709,14 @@ func summarizeSession(sessionID string, force bool) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("✓ Summary written to ~/claude-journal/%s.md\n", time.Now().Format("2006-01-02"))
+	targetDir := resolveJournalDir(meta.CWD)
+	journalDate := time.Now().Format("2006-01-02")
+	if meta.LastTime != "" {
+		if t, err := time.Parse(time.RFC3339Nano, meta.LastTime); err == nil {
+			journalDate = t.Local().Format("2006-01-02")
+		}
+	}
+	fmt.Printf("✓ Summary written to %s/%s.md\n", targetDir, journalDate)
 	fmt.Println()
 	fmt.Println(summary)
 }

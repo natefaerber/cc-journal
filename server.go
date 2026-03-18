@@ -475,9 +475,8 @@ func serve(port int, templatesDir string) {
 				return
 			}
 
-			journalFile := filepath.Join(journalDir(), date+".md")
-			content, err := os.ReadFile(journalFile)
-			if err != nil {
+			content := readDateFromAllDirs(date)
+			if content == nil {
 				http.NotFound(w, r)
 				return
 			}
@@ -683,9 +682,8 @@ func build(outDir string, templatesDir string) {
 
 	// Each daily entry
 	for _, date := range dates {
-		journalFile := filepath.Join(journalDir(), date+".md")
-		content, err := os.ReadFile(journalFile)
-		if err != nil {
+		content := readDateFromAllDirs(date)
+		if content == nil {
 			continue
 		}
 		htmlContent := autoLinkAll(renderMarkdown(string(content)))

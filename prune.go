@@ -11,8 +11,11 @@ import (
 // runPrune removes failed summary entries from journal files.
 // With --dry-run, only reports what would be removed.
 func runPrune(dryRun bool) {
-	dir := journalDir()
-	files, _ := filepath.Glob(filepath.Join(dir, "*.md"))
+	var files []string
+	for _, dir := range allJournalDirs() {
+		matches, _ := filepath.Glob(filepath.Join(dir, "*.md"))
+		files = append(files, matches...)
+	}
 	if len(files) == 0 {
 		fmt.Println("No journal files found.")
 		return

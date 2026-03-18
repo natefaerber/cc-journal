@@ -31,6 +31,14 @@ type LinksConfig struct {
 	GitHubDiscover bool `yaml:"github_discover"`
 }
 
+// Profile maps a directory prefix to config overrides.
+// Sessions whose cwd starts with Match use the profile's JournalDir.
+type Profile struct {
+	Match      string      `yaml:"match"`
+	JournalDir string      `yaml:"journal_dir"`
+	Links      LinksConfig `yaml:"links"`
+}
+
 // Config holds all cc-journal configuration.
 type Config struct {
 	JournalDir string      `yaml:"journal_dir"`
@@ -42,6 +50,7 @@ type Config struct {
 	WeekStart  string      `yaml:"week_start"` // "monday" (default) or "sunday"
 	Slack      SlackConfig `yaml:"slack"`
 	Links      LinksConfig `yaml:"links"`
+	Profiles   []Profile   `yaml:"profiles"`
 }
 
 var defaultConfig = Config{
@@ -116,6 +125,16 @@ func loadConfig() Config {
 		cfg.Model = defaultConfig.Model
 	}
 
+	// Expand ~ in profile paths
+	for i := range cfg.Profiles {
+		if strings.HasPrefix(cfg.Profiles[i].Match, "~/") {
+			cfg.Profiles[i].Match = filepath.Join(home, cfg.Profiles[i].Match[2:])
+		}
+		if strings.HasPrefix(cfg.Profiles[i].JournalDir, "~/") {
+			cfg.Profiles[i].JournalDir = filepath.Join(home, cfg.Profiles[i].JournalDir[2:])
+		}
+	}
+
 	// Normalize week_start
 	cfg.WeekStart = strings.ToLower(strings.TrimSpace(cfg.WeekStart))
 	if cfg.WeekStart != "sunday" {
@@ -123,6 +142,49 @@ func loadConfig() Config {
 	}
 
 	return cfg
+}
+
+// resolveJournalDir returns the journal directory for a given session cwd.
+// It checks profiles in order; first match wins. Falls back to the default journal dir.
+// resolveProfile returns the best-matching profile for a given cwd.
+// The longest (most specific) matching prefix wins, regardless of config order.
+// Returns nil if no profile matches.
+func resolveProfile(cwd string) *Profile {
+	if cwd == "" {
+		return nil
+	}
+	var best *Profile
+	bestLen := 0
+	for i := range cfg.Profiles {
+		p := &cfg.Profiles[i]
+		if p.Match != "" && strings.HasPrefix(cwd, p.Match) && len(p.Match) > bestLen {
+			best = p
+			bestLen = len(p.Match)
+		}
+	}
+	return best
+}
+
+// resolveJournalDir returns the journal directory for a given session cwd.
+// The longest matching profile prefix wins. Falls back to the default journal dir.
+func resolveJournalDir(cwd string) string {
+	if p := resolveProfile(cwd); p != nil && p.JournalDir != "" {
+		return p.JournalDir
+	}
+	return cfg.JournalDir
+}
+
+// allJournalDirs returns all unique journal directories (default + profiles).
+func allJournalDirs() []string {
+	seen := map[string]bool{cfg.JournalDir: true}
+	dirs := []string{cfg.JournalDir}
+	for _, p := range cfg.Profiles {
+		if p.JournalDir != "" && !seen[p.JournalDir] {
+			seen[p.JournalDir] = true
+			dirs = append(dirs, p.JournalDir)
+		}
+	}
+	return dirs
 }
 
 // weekStartDay returns time.Monday or time.Sunday based on config.
