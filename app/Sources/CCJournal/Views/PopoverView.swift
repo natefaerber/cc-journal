@@ -7,11 +7,20 @@ struct PopoverView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("cc-journal")
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("cc-journal")
+                        .font(.headline)
+                    if !appState.cliVersion.isEmpty {
+                        Text(appState.cliVersion)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
                 Spacer()
                 ServerStatusBadge(state: appState.serverManager.state, port: appState.serverManager.port)
-                SettingsLink {
+                Button {
+                    SettingsWindowController.shared.show(appState: appState)
+                } label: {
                     Image(systemName: "gearshape")
                 }
                 .buttonStyle(.plain)

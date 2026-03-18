@@ -1,4 +1,7 @@
 import Foundation
+import os.log
+
+private let logger = Logger(subsystem: "com.ccjournal.app", category: "FileWatcher")
 
 final class FileWatcher {
     private let directory: String
@@ -17,7 +20,12 @@ final class FileWatcher {
 
     func start() {
         fileDescriptor = open(directory, O_EVTONLY)
-        guard fileDescriptor >= 0 else { return }
+        guard fileDescriptor >= 0 else {
+            logger.error("Failed to open directory for watching: \(self.directory)")
+            return
+        }
+
+        logger.info("Watching \(self.directory) for changes")
 
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fileDescriptor,
@@ -26,6 +34,7 @@ final class FileWatcher {
         )
 
         source.setEventHandler { [weak self] in
+            logger.debug("File change detected in journal directory")
             self?.onChange()
         }
 
@@ -40,6 +49,7 @@ final class FileWatcher {
     }
 
     func stop() {
+        logger.info("Stopping file watcher")
         source?.cancel()
         source = nil
     }

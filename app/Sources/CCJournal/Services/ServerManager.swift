@@ -1,5 +1,8 @@
 import AppKit
 import Foundation
+import os.log
+
+private let logger = Logger(subsystem: "com.ccjournal.app", category: "ServerManager")
 
 enum ServerState: Equatable {
     case stopped
@@ -33,6 +36,7 @@ final class ServerManager {
     init(binaryPath: String, port: Int = 8000) {
         self.binaryPath = binaryPath
         self.port = port
+        logger.info("ServerManager initialized (binary: \(binaryPath), port: \(port))")
 
         // Stop server on app termination
         NotificationCenter.default.addObserver(
@@ -40,6 +44,7 @@ final class ServerManager {
             object: nil,
             queue: .main
         ) { [weak self] _ in
+            logger.info("App terminating — stopping server")
             self?.stopServer()
         }
     }
@@ -50,19 +55,45 @@ final class ServerManager {
 
     func startServer() {
         guard state != .running && state != .starting else { return }
+        logger.info("Starting server on port \(self.port)")
         state = .starting
 
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: binaryPath)
         proc.arguments = ["serve", "--port", "\(port)"]
-        proc.standardOutput = FileHandle.nullDevice
-        proc.standardError = FileHandle.nullDevice
+
+        // Pipe server output to a log file
+        let logDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".config/cc-journal/logs")
+        try? FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true)
+        let logFile = logDir.appendingPathComponent("server.log")
+        if let handle = try? FileHandle(forWritingTo: logFile) {
+            handle.seekToEndOfFile()
+            proc.standardOutput = handle
+            proc.standardError = handle
+            logger.info("Server output logging to \(logFile.path)")
+        } else {
+            FileManager.default.createFile(atPath: logFile.path, contents: nil)
+            if let handle = try? FileHandle(forWritingTo: logFile) {
+                proc.standardOutput = handle
+                proc.standardError = handle
+                logger.info("Server output logging to \(logFile.path)")
+            } else {
+                logger.warning("Could not create server log file, output will be discarded")
+                proc.standardOutput = FileHandle.nullDevice
+                proc.standardError = FileHandle.nullDevice
+            }
+        }
 
         proc.terminationHandler = { [weak self] process in
             DispatchQueue.main.async {
                 guard let self, self.process === process else { return }
+                let code = process.terminationStatus
                 if self.state == .running || self.state == .starting {
-                    self.state = .error("Server exited with code \(process.terminationStatus)")
+                    logger.error("Server exited unexpectedly with code \(code)")
+                    self.state = .error("Server exited with code \(code)")
+                } else {
+                    logger.info("Server process ended (code \(code))")
                 }
                 self.stopHealthCheck()
                 self.process = nil
@@ -72,12 +103,14 @@ final class ServerManager {
         do {
             try proc.run()
             process = proc
+            logger.info("Server process started (PID \(proc.processIdentifier))")
             // Give the server a moment to start, then begin health checks
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.checkHealth()
                 self?.startHealthCheck()
             }
         } catch {
+            logger.error("Failed to start server: \(error.localizedDescription)")
             state = .error(error.localizedDescription)
         }
     }
@@ -91,12 +124,14 @@ final class ServerManager {
             return
         }
 
-        // SIGTERM for graceful shutdown
+        let pid = proc.processIdentifier
+        logger.info("Stopping server (PID \(pid)) — sending SIGTERM")
         proc.terminate()
 
         // SIGKILL after 3s if still running
         DispatchQueue.global().asyncAfter(deadline: .now() + 3.0) { [weak self] in
             guard let self, let proc = self.process, proc.isRunning else { return }
+            logger.warning("Server still running after 3s — sending SIGKILL (PID \(pid))")
             kill(proc.processIdentifier, SIGKILL)
         }
 
