@@ -152,8 +152,15 @@ func main() {
 				Name:     "today",
 				Usage:    "Print today's journal entries",
 				Category: "Browse",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{Name: "json", Usage: "output as JSON"},
+				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					showToday()
+					if cmd.Bool("json") {
+						showDateJSON(time.Now().Format("2006-01-02"))
+					} else {
+						showToday()
+					}
 					return nil
 				},
 			},
@@ -162,11 +169,18 @@ func main() {
 				Usage:     "Print a specific date's journal entries",
 				Category:  "Browse",
 				ArgsUsage: "<DATE>",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{Name: "json", Usage: "output as JSON"},
+				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					if cmd.NArg() == 0 {
 						return fmt.Errorf("date required (YYYY-MM-DD)")
 					}
-					showDate(cmd.Args().First())
+					if cmd.Bool("json") {
+						showDateJSON(cmd.Args().First())
+					} else {
+						showDate(cmd.Args().First())
+					}
 					return nil
 				},
 			},
@@ -174,8 +188,31 @@ func main() {
 				Name:     "list",
 				Usage:    "List all journal files",
 				Category: "Browse",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{Name: "json", Usage: "output as JSON"},
+				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					listEntries()
+					if cmd.Bool("json") {
+						listEntriesJSON()
+					} else {
+						listEntries()
+					}
+					return nil
+				},
+			},
+			{
+				Name:     "stats",
+				Usage:    "Show journal statistics",
+				Category: "Browse",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{Name: "json", Usage: "output as JSON"},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					if cmd.Bool("json") {
+						showStatsJSON()
+					} else {
+						showStats()
+					}
 					return nil
 				},
 			},

@@ -213,8 +213,8 @@ func runBackfill(cutoff time.Time, dryRun bool, force bool) {
 			replaceWithStub(sessionID, journalDate)
 		}
 
-		// Write to the correct date's journal
-		dir := journalDir()
+		// Write to the correct date's journal (resolved from session cwd)
+		dir := resolveJournalDir(meta.CWD)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to create journal dir: %v\n", err)
 			continue
@@ -300,19 +300,20 @@ func runBackfill(cutoff time.Time, dryRun bool, force bool) {
 	}
 }
 
-// collectExistingIDs scans all journal files for session UUIDs.
+// collectExistingIDs scans all journal directories for session UUIDs.
 func collectExistingIDs() map[string]bool {
 	ids := make(map[string]bool)
-	dir := journalDir()
-	files, _ := filepath.Glob(filepath.Join(dir, "*.md"))
 	re := regexp.MustCompile(`<code>([a-f0-9-]{36})</code>`)
-	for _, f := range files {
-		content, err := os.ReadFile(f)
-		if err != nil {
-			continue
-		}
-		for _, match := range re.FindAllSubmatch(content, -1) {
-			ids[string(match[1])] = true
+	for _, dir := range allJournalDirs() {
+		files, _ := filepath.Glob(filepath.Join(dir, "*.md"))
+		for _, f := range files {
+			content, err := os.ReadFile(f)
+			if err != nil {
+				continue
+			}
+			for _, match := range re.FindAllSubmatch(content, -1) {
+				ids[string(match[1])] = true
+			}
 		}
 	}
 	return ids

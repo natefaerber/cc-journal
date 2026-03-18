@@ -10,9 +10,9 @@ import (
 
 // ExternalLink represents a link to an external service.
 type ExternalLink struct {
-	Service string // "github", "linear", "jira", "confluence"
-	Label   string // Display text, e.g. "PROJ-1292", "PR #4013"
-	URL     string // Full URL
+	Service string `json:"service"` // "github", "linear", "jira", "confluence"
+	Label   string `json:"label"`   // Display text, e.g. "PROJ-1292", "PR #4013"
+	URL     string `json:"url"`     // Full URL
 }
 
 var (
