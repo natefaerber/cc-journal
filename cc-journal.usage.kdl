@@ -3,6 +3,10 @@ name cc-journal
 bin cc-journal
 about "Capture, summarize, and visualize Claude Code sessions as a developer journal"
 
+flag "--config" help="Path to config file (default: ~/.config/cc-journal/config.yaml)" {
+    arg <PATH>
+}
+
 cmd serve help="Start dev server with live reload (send SIGHUP to reload config)" {
     flag "--port" help="Port to listen on" default="8000" {
         arg <PORT>
