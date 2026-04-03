@@ -52,42 +52,46 @@ func parseSince(expr string, rolling bool) (time.Time, error) {
 
 // runBackfill retroactively summarizes existing Claude Code sessions.
 func runBackfill(cutoff time.Time, dryRun bool, force bool) {
-	home, _ := os.UserHomeDir()
-	projectsDir := filepath.Join(home, ".claude", "projects")
-
-	if _, err := os.Stat(projectsDir); os.IsNotExist(err) {
-		fmt.Fprintln(os.Stderr, "No Claude Code projects found.")
-		os.Exit(1)
-	}
-
-	// Find all session JSONL files
+	// Find all session JSONL files across all configured claude dirs
 	var sessionFiles []struct {
 		path    string
 		modTime time.Time
 	}
 
-	dirs, _ := os.ReadDir(projectsDir)
-	for _, d := range dirs {
-		if !d.IsDir() {
+	foundAny := false
+	for _, projectsDir := range allProjectsDirs() {
+		if _, err := os.Stat(projectsDir); os.IsNotExist(err) {
 			continue
 		}
-		files, _ := filepath.Glob(filepath.Join(projectsDir, d.Name(), "*.jsonl"))
-		for _, f := range files {
-			if strings.Contains(f, "subagent") {
+		foundAny = true
+		dirs, _ := os.ReadDir(projectsDir)
+		for _, d := range dirs {
+			if !d.IsDir() {
 				continue
 			}
-			info, err := os.Stat(f)
-			if err != nil {
-				continue
+			files, _ := filepath.Glob(filepath.Join(projectsDir, d.Name(), "*.jsonl"))
+			for _, f := range files {
+				if strings.Contains(f, "subagent") {
+					continue
+				}
+				info, err := os.Stat(f)
+				if err != nil {
+					continue
+				}
+				if info.ModTime().Before(cutoff) {
+					continue
+				}
+				sessionFiles = append(sessionFiles, struct {
+					path    string
+					modTime time.Time
+				}{f, info.ModTime()})
 			}
-			if info.ModTime().Before(cutoff) {
-				continue
-			}
-			sessionFiles = append(sessionFiles, struct {
-				path    string
-				modTime time.Time
-			}{f, info.ModTime()})
 		}
+	}
+
+	if !foundAny {
+		fmt.Fprintln(os.Stderr, "No Claude Code projects found.")
+		os.Exit(1)
 	}
 
 	sort.Slice(sessionFiles, func(i, j int) bool {

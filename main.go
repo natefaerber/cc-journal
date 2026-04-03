@@ -18,16 +18,24 @@ var (
 )
 
 func main() {
-	cfg = loadConfig()
-	if t, err := loadTheme(cfg.Theme); err == nil {
-		currentTheme = t
-	}
-
 	app := &cli.Command{
 		Name:    "cc-journal",
 		Usage:   "Claude Code developer journal",
 		Version: fmt.Sprintf("%s (%s) built %s", version, commit, buildTime),
 		Suggest: true,
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "config", Usage: "path to config file (default: ~/.config/cc-journal/config.yaml)"},
+		},
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			if p := cmd.String("config"); p != "" {
+				configOverride = p
+			}
+			cfg = loadConfig()
+			if t, err := loadTheme(cfg.Theme); err == nil {
+				currentTheme = t
+			}
+			return ctx, nil
+		},
 		Commands: []*cli.Command{
 			// Site commands
 			{

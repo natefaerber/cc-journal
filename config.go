@@ -36,12 +36,14 @@ type LinksConfig struct {
 type Profile struct {
 	Match      string      `yaml:"match"`
 	JournalDir string      `yaml:"journal_dir"`
+	ClaudeDir  string      `yaml:"claude_dir"`
 	Links      LinksConfig `yaml:"links"`
 }
 
 // Config holds all cc-journal configuration.
 type Config struct {
 	JournalDir string      `yaml:"journal_dir"`
+	ClaudeDir  string      `yaml:"claude_dir"` // path to .claude directory (default: ~/.claude)
 	PromptDir  string      `yaml:"prompt_dir"`
 	Exclude    []string    `yaml:"exclude"`
 	Model      string      `yaml:"model"`
@@ -57,8 +59,13 @@ var defaultConfig = Config{
 	Model: "claude-sonnet-4-20250514",
 }
 
-// configDir returns $XDG_CONFIG_HOME/cc-journal, defaulting to ~/.config/cc-journal.
+// configDir returns the directory containing the config file.
+// If --config was provided, returns its parent directory.
+// Otherwise uses $XDG_CONFIG_HOME/cc-journal, defaulting to ~/.config/cc-journal.
 func configDir() string {
+	if configOverride != "" {
+		return filepath.Dir(configOverride)
+	}
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
 		return filepath.Join(xdg, "cc-journal")
 	}
@@ -67,9 +74,16 @@ func configDir() string {
 }
 
 // configPath returns the path to config.yaml.
+// If --config was provided, that path is used instead.
 func configPath() string {
+	if configOverride != "" {
+		return configOverride
+	}
 	return filepath.Join(configDir(), "config.yaml")
 }
+
+// configOverride is set by the --config flag to use a custom config file path.
+var configOverride string
 
 // cfg is the global configuration, initialized in main().
 var cfg Config
@@ -90,6 +104,9 @@ func loadConfig() Config {
 	home, _ := os.UserHomeDir()
 	if cfg.JournalDir != "" && strings.HasPrefix(cfg.JournalDir, "~/") {
 		cfg.JournalDir = filepath.Join(home, cfg.JournalDir[2:])
+	}
+	if cfg.ClaudeDir != "" && strings.HasPrefix(cfg.ClaudeDir, "~/") {
+		cfg.ClaudeDir = filepath.Join(home, cfg.ClaudeDir[2:])
 	}
 	if cfg.PromptDir != "" && strings.HasPrefix(cfg.PromptDir, "~/") {
 		cfg.PromptDir = filepath.Join(home, cfg.PromptDir[2:])
@@ -115,6 +132,11 @@ func loadConfig() Config {
 		cfg.JournalDir = filepath.Join(home, "claude-journal")
 	}
 
+	// Default claude dir
+	if cfg.ClaudeDir == "" {
+		cfg.ClaudeDir = filepath.Join(home, ".claude")
+	}
+
 	// Default prompt dir
 	if cfg.PromptDir == "" {
 		cfg.PromptDir = filepath.Join(configDir(), "prompts")
@@ -132,6 +154,9 @@ func loadConfig() Config {
 		}
 		if strings.HasPrefix(cfg.Profiles[i].JournalDir, "~/") {
 			cfg.Profiles[i].JournalDir = filepath.Join(home, cfg.Profiles[i].JournalDir[2:])
+		}
+		if strings.HasPrefix(cfg.Profiles[i].ClaudeDir, "~/") {
+			cfg.Profiles[i].ClaudeDir = filepath.Join(home, cfg.Profiles[i].ClaudeDir[2:])
 		}
 	}
 
@@ -172,6 +197,28 @@ func resolveJournalDir(cwd string) string {
 		return p.JournalDir
 	}
 	return cfg.JournalDir
+}
+
+// allClaudeDirs returns all unique Claude data directories (default + profiles).
+func allClaudeDirs() []string {
+	seen := map[string]bool{cfg.ClaudeDir: true}
+	dirs := []string{cfg.ClaudeDir}
+	for _, p := range cfg.Profiles {
+		if p.ClaudeDir != "" && !seen[p.ClaudeDir] {
+			seen[p.ClaudeDir] = true
+			dirs = append(dirs, p.ClaudeDir)
+		}
+	}
+	return dirs
+}
+
+// allProjectsDirs returns all unique projects directories across all claude dirs.
+func allProjectsDirs() []string {
+	var dirs []string
+	for _, cd := range allClaudeDirs() {
+		dirs = append(dirs, filepath.Join(cd, "projects"))
+	}
+	return dirs
 }
 
 // allJournalDirs returns all unique journal directories (default + profiles).
