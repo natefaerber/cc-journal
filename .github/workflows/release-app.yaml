@@ -1,0 +1,51 @@
+name: Release Menu Bar App
+
+on:
+  push:
+    tags:
+      - "app-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Build release binary
+        working-directory: app
+        run: swift build -c release --arch arm64 --arch x86_64
+
+      - name: Assemble .app bundle
+        working-directory: app
+        run: |
+          # Universal binary lands at .build/apple/Products/Release/CCJournal
+          # Override BIN since make-app.sh expects .build/<config>/CCJournal layout.
+          mkdir -p .build/release
+          cp .build/apple/Products/Release/CCJournal .build/release/CCJournal
+          ./scripts/make-app.sh
+
+      # TODO: code signing + notarization.
+      # Requires Apple Developer ID cert in CI secrets (APPLE_CERT_P12, APPLE_CERT_PASSWORD,
+      # APPLE_TEAM_ID) and AC_USERNAME / AC_PASSWORD app-specific password for notarytool.
+      # Until then, releases are unsigned — users will need to right-click → Open on first launch.
+
+      - name: Zip bundle
+        working-directory: app/.build/bundle
+        run: zip -ry CCJournal-${{ github.ref_name }}.zip CCJournal.app
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2
+        with:
+          files: app/.build/bundle/CCJournal-${{ github.ref_name }}.zip
+          generate_release_notes: true

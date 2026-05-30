@@ -49,6 +49,27 @@ pkill -f 'cc-journal.*serve' 2>/dev/null && echo "Stopped cc-journal server." ||
 description = "Remove build artifacts"
 run = "rm -f cc-journal"
 
+[tasks."app:build"]
+description = "Build the SwiftUI menu bar app (release)"
+dir = "app"
+run = "swift build -c release"
+
+[tasks."app:run"]
+description = "Run the menu bar app in debug mode (foreground)"
+dir = "app"
+run = "swift run"
+
+[tasks."app:install"]
+description = "Build and install the menu bar app binary to ~/.local/bin"
+depends = ["app:build"]
+dir = "app"
+run = """
+mkdir -p ~/.local/bin
+cp .build/release/CCJournal ~/.local/bin/cc-journal-menubar
+echo "Installed cc-journal-menubar to ~/.local/bin/"
+echo "Run it from terminal or set up a LaunchAgent to start at login."
+"""
+
 [tasks.render]
 description = "Generate completions and docs from usage spec"
 depends = ["render:*"]
