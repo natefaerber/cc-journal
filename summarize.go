@@ -111,54 +111,53 @@ func getAPIKey() (string, error) {
 // findSessionTranscript locates the JSONL transcript file for a session ID.
 // If sessionID is empty, finds the most recent session for the given cwd.
 func findSessionTranscript(sessionID string, cwd string) (string, string, error) {
-	home, _ := os.UserHomeDir()
-	projectsDir := filepath.Join(home, ".claude", "projects")
-
 	if sessionID != "" {
-		// Search all project dirs for this session ID
-		matches, _ := filepath.Glob(filepath.Join(projectsDir, "*", sessionID+".jsonl"))
-		if len(matches) > 0 {
-			return matches[0], sessionID, nil
+		// Search all projects dirs for this session ID
+		for _, projectsDir := range allProjectsDirs() {
+			matches, _ := filepath.Glob(filepath.Join(projectsDir, "*", sessionID+".jsonl"))
+			if len(matches) > 0 {
+				return matches[0], sessionID, nil
+			}
 		}
 		return "", "", fmt.Errorf("session %s not found", sessionID)
 	}
 
 	// Find most recent session for cwd
-	// The project dir name is derived from the cwd path
 	var candidates []struct {
 		path    string
 		modTime time.Time
 		id      string
 	}
 
-	dirs, _ := os.ReadDir(projectsDir)
-	for _, d := range dirs {
-		if !d.IsDir() {
-			continue
-		}
-		dirPath := filepath.Join(projectsDir, d.Name())
-		files, _ := filepath.Glob(filepath.Join(dirPath, "*.jsonl"))
-		for _, f := range files {
-			if strings.Contains(f, "subagent") {
+	for _, projectsDir := range allProjectsDirs() {
+		dirs, _ := os.ReadDir(projectsDir)
+		for _, d := range dirs {
+			if !d.IsDir() {
 				continue
 			}
-			info, err := os.Stat(f)
-			if err != nil {
-				continue
-			}
-			// If cwd is specified, check if this session's cwd matches
-			if cwd != "" {
-				fileCwd := peekCwd(f)
-				if fileCwd != "" && fileCwd != cwd {
+			dirPath := filepath.Join(projectsDir, d.Name())
+			files, _ := filepath.Glob(filepath.Join(dirPath, "*.jsonl"))
+			for _, f := range files {
+				if strings.Contains(f, "subagent") {
 					continue
 				}
+				info, err := os.Stat(f)
+				if err != nil {
+					continue
+				}
+				if cwd != "" {
+					fileCwd := peekCwd(f)
+					if fileCwd != "" && fileCwd != cwd {
+						continue
+					}
+				}
+				sid := strings.TrimSuffix(filepath.Base(f), ".jsonl")
+				candidates = append(candidates, struct {
+					path    string
+					modTime time.Time
+					id      string
+				}{f, info.ModTime(), sid})
 			}
-			sid := strings.TrimSuffix(filepath.Base(f), ".jsonl")
-			candidates = append(candidates, struct {
-				path    string
-				modTime time.Time
-				id      string
-			}{f, info.ModTime(), sid})
 		}
 	}
 

@@ -58,6 +58,9 @@ const defaultConfigYAML = `# cc-journal configuration
 # Week start day: monday (default) or sunday
 # week_start: monday
 
+# Claude Code data directory (default: ~/.claude)
+# claude_dir: ~/.claude
+
 # Directories to exclude from summarization
 # exclude:
 #   - ~/private-project
