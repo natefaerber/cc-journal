@@ -251,6 +251,63 @@ The web UI supports full keyboard navigation:
 
 The command palette searches across all pages, projects, dates, and recent sessions.
 
+## Menu bar app
+
+A lightweight macOS menu bar app (`app/`, SwiftUI) gives quick access to stats, today's entries, and common actions without opening a browser. It's a thin shell that shells out to the `cc-journal` binary for data, so it stays in sync as the CLI evolves. Requires macOS 14+.
+
+### Build and install
+
+```sh
+mise run app:run          # run in debug (foreground) to try it out
+mise run app:install-app  # build CCJournal.app, install to /Applications, restart the login LaunchAgent
+```
+
+`app:install-app` assembles `CCJournal.app` (via `app:bundle` → `app/scripts/make-app.sh`), copies it to `/Applications`, and — if the LaunchAgent below is installed — restarts it. Run it again any time after changing the Swift sources to rebuild and re-sync. The app runs as an `LSUIElement` (menu bar only, no Dock icon).
+
+### Using it
+
+Click the cc-journal icon in the menu bar to open the popover. Under **Quick Actions**:
+
+- **Open dashboard** (`D`) — opens `http://localhost:8000`, auto-starting the web server first if it isn't running.
+- **Browse entries** (`B`) — same, but opens `/browse`.
+- **Start server** / **Stop server** (`R`) — toggle the `cc-journal serve` process manually. The status dot in the popover header shows the state; server logs go to `~/.config/cc-journal/logs/server.log`.
+
+To start the server automatically when the app launches, open the popover's settings (gear icon) → **Server** → enable **Start server on app launch**. Note the app and the web server are separate processes: the app hosts the menu bar UI, and starts the server on demand.
+
+### Start at login (LaunchAgent)
+
+Create `~/Library/LaunchAgents/com.ccjournal.app.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ccjournal.app</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Applications/CCJournal.app/Contents/MacOS/CCJournal</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <false/>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+</dict>
+</plist>
+```
+
+Then load it:
+
+```sh
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.ccjournal.app.plist
+launchctl kickstart -k gui/$(id -u)/com.ccjournal.app   # start now without waiting for next login
+```
+
+`KeepAlive: false` means quitting the app from its menu keeps it quit until the next login; set it to `true` to always relaunch. The agent appears in **System Settings → General → Login Items** under "Allow in the Background". To stop it and disable autostart: `launchctl bootout gui/$(id -u)/com.ccjournal.app`, then delete the plist.
+
 ## Journal format
 
 Each `~/claude-journal/YYYY-MM-DD.md` file:
@@ -404,6 +461,11 @@ Report templates (`standup.txt`, `weekly.txt`) use Go's `text/template` syntax w
 │   ├── daily-entry.html # Single day with session focus/nav
 │   ├── project.html     # Per-project session list
 │   └── report.html      # Standup/weekly report display
+├── app/                 # SwiftUI menu bar app (CCJournal.app)
+│   ├── Sources/         # Swift sources (popover, CLI bridge, server manager)
+│   ├── Info.plist       # Bundle metadata (LSUIElement menu bar app)
+│   └── scripts/
+│       └── make-app.sh  # Assemble CCJournal.app from the release binary
 ├── docs/
 │   └── spec-menubar.md  # Menu bar app spec
 ├── .github/
