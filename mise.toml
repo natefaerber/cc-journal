@@ -70,6 +70,30 @@ echo "Installed cc-journal-menubar to ~/.local/bin/"
 echo "Run it from terminal or set up a LaunchAgent to start at login."
 """
 
+[tasks."app:bundle"]
+description = "Build the release binary and assemble CCJournal.app into app/.build/bundle"
+depends = ["app:build"]
+dir = "app"
+run = "CONFIG=release ./scripts/make-app.sh"
+
+[tasks."app:install-app"]
+description = "Build CCJournal.app, install it to /Applications, and restart the login LaunchAgent"
+depends = ["app:bundle"]
+dir = "app"
+run = """
+launchctl bootout "gui/$(id -u)/com.ccjournal.app" 2>/dev/null || true
+rm -rf /Applications/CCJournal.app
+cp -R .build/bundle/CCJournal.app /Applications/CCJournal.app
+echo "Installed /Applications/CCJournal.app"
+if [ -f ~/Library/LaunchAgents/com.ccjournal.app.plist ]; then
+  launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.ccjournal.app.plist 2>/dev/null || true
+  launchctl kickstart -k "gui/$(id -u)/com.ccjournal.app"
+  echo "Restarted login LaunchAgent (com.ccjournal.app)"
+else
+  echo "No LaunchAgent found — open /Applications/CCJournal.app manually."
+fi
+"""
+
 [tasks.render]
 description = "Generate completions and docs from usage spec"
 depends = ["render:*"]
