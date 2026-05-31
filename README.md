@@ -40,6 +40,62 @@ mv cc-journal ~/.local/bin/
 mise use -g github:natefaerber/cc-journal
 ```
 
+### With an agent
+
+Paste the following prompt into a coding agent (Claude Code, etc.) to have it install and configure cc-journal end-to-end:
+
+```
+Install and configure cc-journal (https://github.com/natefaerber/cc-journal),
+a Go CLI that auto-summarizes my Claude Code sessions into a developer journal.
+Do the following, checking each step before moving on:
+
+1. INSTALL the binary onto my PATH. Pick whichever fits my machine:
+   - `go install github.com/natefaerber/cc-journal@latest` if Go 1.24+ is present, OR
+   - download the right release asset for my OS/arch from
+     https://github.com/natefaerber/cc-journal/releases/latest
+     (cc-journal_{darwin,linux}_{arm64,amd64}.tar.gz), untar it, and move the
+     `cc-journal` binary into a directory on my PATH (e.g. ~/.local/bin).
+   Verify with `cc-journal --help`.
+
+2. API KEY. cc-journal resolves a key in this order: fnox → CC_JOURNAL_API_KEY →
+   ANTHROPIC_API_KEY → config.yaml. Check whether one is already available
+   (e.g. `echo $ANTHROPIC_API_KEY`, `fnox get ANTHROPIC_API_KEY`). If none is
+   set, STOP and ask me to provide one rather than inventing it. Confirm with
+   `cc-journal debug-key`.
+
+3. SESSIONEND HOOK. Merge this into ~/.claude/settings.json without clobbering
+   any existing hooks or settings (parse the JSON, add to hooks.SessionEnd):
+
+     {
+       "hooks": {
+         "SessionEnd": [
+           {
+             "hooks": [
+               {
+                 "type": "command",
+                 "command": "TMP=$(mktemp /tmp/cc-journal-in.XXXXXX); cat > \"$TMP\"; ( cc-journal hook < \"$TMP\" >/tmp/cc-journal.log 2>&1; rm -f \"$TMP\" ) &",
+                 "timeout": 1
+               }
+             ]
+           }
+         ]
+       }
+     }
+
+   The hook reads stdin synchronously, then backgrounds the API call so it does
+   not block session exit.
+
+4. (Optional) BACKFILL my recent sessions so the journal isn't empty:
+   `cc-journal backfill --days 7 --dry-run` first, then without --dry-run if it
+   looks right.
+
+5. VERIFY. End a Claude Code session (or run the backfill above), then show me
+   `cc-journal today`. Tell me to run `cc-journal serve` to open the dashboard.
+
+Report what you did at each step. If anything is ambiguous or a key is missing,
+ask me instead of guessing.
+```
+
 ### From source
 
 ```sh
@@ -60,7 +116,7 @@ go build -o cc-journal .
 
 cc-journal checks for an API key in this order:
 
-1. [fnox](https://github.com/multitheftauto/fnox) encrypted key store
+1. [fnox](https://github.com/jdx/fnox) encrypted key store
 2. `CC_JOURNAL_API_KEY` environment variable
 3. `ANTHROPIC_API_KEY` environment variable
 4. `api_key` in config.yaml
@@ -391,7 +447,7 @@ GoReleaser builds binaries for linux/darwin on amd64/arm64 and creates a GitHub 
 - **[goldmark](https://github.com/yuin/goldmark)** — markdown rendering (+ table extension)
 - **[gopkg.in/yaml.v3](https://pkg.go.dev/gopkg.in/yaml.v3)** — config file parsing
 - **[Tailwind CSS v4](https://tailwindcss.com/)** — styling (CDN, no build step)
-- **[fnox](https://github.com/multitheftauto/fnox)** — secret management (optional)
+- **[fnox](https://github.com/jdx/fnox)** — secret management (optional)
 
 ## Troubleshooting
 
