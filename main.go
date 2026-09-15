@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -431,7 +432,12 @@ func debugKey() {
 		return
 	}
 	fmt.Printf("getAPIKey result: %s... (len=%d)\n", key[:min(15, len(key))], len(key))
-	req, _ := http.NewRequest("POST", apiURL, bytes.NewReader([]byte(`{"model":"claude-sonnet-4-20250514","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}`)))
+	body, _ := json.Marshal(map[string]interface{}{
+		"model":      cfg.Model,
+		"max_tokens": 5,
+		"messages":   []map[string]string{{"role": "user", "content": "hi"}},
+	})
+	req, _ := http.NewRequest("POST", apiURL, bytes.NewReader(body))
 	req.Header.Set("x-api-key", key)
 	req.Header.Set("anthropic-version", apiVersion)
 	req.Header.Set("content-type", "application/json")

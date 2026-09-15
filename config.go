@@ -56,7 +56,7 @@ type Config struct {
 }
 
 var defaultConfig = Config{
-	Model: "claude-sonnet-4-20250514",
+	Model: "claude-sonnet-5",
 }
 
 // configDir returns the directory containing the config file.
