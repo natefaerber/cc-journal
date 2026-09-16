@@ -435,12 +435,24 @@ func loadPrompt(name string) string {
 // apiResponse is the parsed Anthropic API response.
 type apiResponse struct {
 	Content []struct {
+		Type string `json:"type"`
 		Text string `json:"text"`
 	} `json:"content"`
 	Usage struct {
 		InputTokens  int64 `json:"input_tokens"`
 		OutputTokens int64 `json:"output_tokens"`
 	} `json:"usage"`
+}
+
+// firstText returns the first text block in the response. Models with adaptive
+// thinking may emit a thinking block before the text.
+func (r apiResponse) firstText() (string, bool) {
+	for _, c := range r.Content {
+		if c.Type == "text" {
+			return c.Text, true
+		}
+	}
+	return "", false
 }
 
 // callAnthropicAPI sends the transcript to the API for summarization.
@@ -480,14 +492,15 @@ func callAnthropicAPI(apiKey, transcript, project, branch string) (string, Token
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return "", TokenUsage{}, fmt.Errorf("failed to parse API response: %w", err)
 	}
-	if len(result.Content) == 0 {
+	text, ok := result.firstText()
+	if !ok {
 		return "", TokenUsage{}, fmt.Errorf("empty API response")
 	}
 	tokens := TokenUsage{
 		SummaryInputTokens:  result.Usage.InputTokens,
 		SummaryOutputTokens: result.Usage.OutputTokens,
 	}
-	return result.Content[0].Text, tokens, nil
+	return text, tokens, nil
 }
 
 // callAnthropicAPIRaw sends a raw prompt to the API with a custom max_tokens.
@@ -520,10 +533,11 @@ func callAnthropicAPIRaw(apiKey, prompt string, maxTokens int) (string, error) {
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return "", fmt.Errorf("failed to parse API response: %w", err)
 	}
-	if len(result.Content) == 0 {
+	text, ok := result.firstText()
+	if !ok {
 		return "", fmt.Errorf("empty API response")
 	}
-	return result.Content[0].Text, nil
+	return text, nil
 }
 
 // appendToJournal writes a session summary to the journal file.

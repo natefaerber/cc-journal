@@ -47,7 +47,7 @@ const defaultConfigYAML = `# cc-journal configuration
 # journal_dir: ~/claude-journal
 
 # AI model for summarization
-# model: claude-sonnet-4-20250514
+# model: claude-sonnet-5
 
 # API key (prefer ANTHROPIC_API_KEY env var instead)
 # api_key: sk-ant-...

@@ -354,8 +354,8 @@ journal_dir: ~/claude-journal
 prompt_dir: ~/.config/cc-journal/prompts
 
 # Anthropic model for summarization.
-# Default: claude-sonnet-4-20250514
-model: claude-sonnet-4-20250514
+# Default: claude-sonnet-5
+model: claude-sonnet-5
 
 # API key (prefer fnox or CC_JOURNAL_API_KEY env var instead).
 # api_key: sk-ant-...
